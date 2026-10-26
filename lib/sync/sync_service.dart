@@ -157,11 +157,44 @@ class SyncService extends ChangeNotifier {
   }
 
   /// Sprawdza połączenie i przygotowuje foldery.
+  /// Zawartość folderu synchronizacji; gdy go nie ma – próbuje go utworzyć.
+  static Future<List<DavEntry>?> _openRoot(WebDav dav) async {
+    final root = await dav.list('');
+    if (root != null) return root;
+    try {
+      await dav.mkcol('');
+    } catch (_) {}
+    return dav.list('');
+  }
+
+  /// Podpowiedź, gdy folderu nie ma: co faktycznie jest piętro wyżej.
+  static Future<String> _missingHelp(SyncConfig cfg) async {
+    final base = WebDav.normalizeBase(cfg.url);
+    final segs = base.pathSegments.where((s) => s.isNotEmpty).toList();
+    final name = segs.isEmpty ? '' : segs.last;
+    final parent = base.resolve('..');
+    final dav = WebDav(parent.toString(), cfg.user, cfg.password, allowSelfSigned: cfg.allowSelfSigned);
+    try {
+      final items = await dav.list('');
+      if (items == null) {
+        return 'Nie ma folderu „$name” ani folderu nadrzędnego ${Uri.decodeFull(parent.path)}. Sprawdź adres.';
+      }
+      final dirs = items.where((e) => e.isDir).map((e) => e.name).toList();
+      return 'Nie udało się otworzyć ani utworzyć folderu „$name”. '
+          '${dirs.isEmpty ? 'W ${Uri.decodeFull(parent.path)} nie ma żadnych folderów.' : 'W ${Uri.decodeFull(parent.path)} są foldery: ${dirs.join(', ')}.'} '
+          'Wielkość liter ma znaczenie – popraw adres albo utwórz folder „$name”.';
+    } catch (e) {
+      return 'Folder „$name” nie istnieje i nie udało się go utworzyć ($e).';
+    } finally {
+      dav.close();
+    }
+  }
+
   static Future<String?> test(SyncConfig cfg) async {
     final dav = WebDav(cfg.url, cfg.user, cfg.password, allowSelfSigned: cfg.allowSelfSigned);
     try {
-      final root = await dav.list('');
-      if (root == null) return 'Folder pod tym adresem nie istnieje. Utwórz go na NAS-ie (np. udostępniony folder „znicz”).';
+      final root = await _openRoot(dav);
+      if (root == null) return await _missingHelp(cfg);
       for (final d in ['cmentarze', 'groby', 'zdjecia']) {
         if (!root.any((e) => e.isDir && e.name == d)) await dav.mkcol(d);
       }
@@ -178,8 +211,8 @@ class SyncService extends ChangeNotifier {
   Future<SyncStats> _run(WebDav dav) async {
     final db = AppDb.I;
     final stats = SyncStats();
-    final root = await dav.list('');
-    if (root == null) throw DavException('Folder synchronizacji nie istnieje na serwerze');
+    final root = await _openRoot(dav);
+    if (root == null) throw DavException(await _missingHelp(await SyncConfig.load()));
     for (final d in ['cmentarze', 'groby', 'zdjecia']) {
       if (!root.any((e) => e.isDir && e.name == d)) await dav.mkcol(d);
     }

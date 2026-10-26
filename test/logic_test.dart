@@ -213,6 +213,8 @@ void main() {
     test('adres serwera', () {
       expect(WebDav.normalizeBase('nas.local:5006/znicz').toString(), 'https://nas.local:5006/znicz/');
       expect(WebDav('https://a.pl/dav', 'u', 'p').uri('groby/a b.json').toString(), 'https://a.pl/dav/groby/a%20b.json');
+      expect(WebDav('https://app.koofr.net/dav/Koofr/znicz', 'u', 'p').uri('').toString(), 'https://app.koofr.net/dav/Koofr/znicz/');
+      expect(WebDav.normalizeBase('https://app.koofr.net/dav/Koofr/znicz').resolve('..').toString(), 'https://app.koofr.net/dav/Koofr/');
     });
   });
 }

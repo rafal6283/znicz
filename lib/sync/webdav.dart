@@ -64,6 +64,7 @@ class WebDav {
   /// Ścieżka względna („groby/abc.json”) → pełny adres z poprawnie zakodowanymi segmentami.
   Uri uri(String rel) {
     final segs = rel.split('/').where((s) => s.isNotEmpty).map(Uri.encodeComponent).join('/');
+    if (segs.isEmpty) return base; // sam folder synchronizacji
     return base.resolve(rel.endsWith('/') ? '$segs/' : segs);
   }
 
