@@ -1,0 +1,205 @@
+name: Zbuduj aplikację
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ios:
+        description: 'Zbuduj też wersję na iPhone (macOS – zużywa 10× więcej minut)'
+        type: boolean
+        default: true
+      smoke:
+        description: 'Uruchom test na emulatorze Androida'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    # Jednorazowo generuje foldery android/ i ios/ (flutter create), dostosowuje je i zapisuje w repo.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Czy brakuje platform?
+        id: check
+        run: |
+          if [ -d android ] && [ -d ios ]; then echo "need=false" >> $GITHUB_OUTPUT; else echo "need=true" >> $GITHUB_OUTPUT; fi
+      - uses: subosito/flutter-action@v2
+        if: steps.check.outputs.need == 'true'
+        with:
+          channel: stable
+          cache: true
+      - name: flutter create + dostosowanie
+        if: steps.check.outputs.need == 'true'
+        run: |
+          flutter --version
+          flutter create --org pl.znicz --project-name znicz --platforms android,ios .
+          rm -f test/widget_test.dart
+          python3 .github/patch_platforms.py
+          if [ ! -f android/app/znicz.jks ]; then
+            keytool -genkeypair -v -keystore android/app/znicz.jks -storepass znicz123 -keypass znicz123 -alias znicz \
+              -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=Znicz, O=Prywatna, C=PL"
+          fi
+          flutter pub get
+          dart run flutter_launcher_icons
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Wygenerowane platformy Android i iOS (flutter create + dostosowanie)"
+          git push
+
+  android:
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Zależności
+        run: |
+          flutter --version | head -1 | sed 's/^/::notice::/'
+          set -o pipefail
+          flutter pub get 2>&1 | tee build.log
+      - name: Analiza kodu
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.log
+      - name: Testy
+        run: |
+          set -o pipefail
+          flutter test 2>&1 | tee test.log
+      - name: Build APK
+        run: |
+          set -o pipefail
+          flutter build apk --release --target-platform android-arm64 --build-name=1.0.${{ github.run_number }} --build-number=${{ github.run_number }} 2>&1 | tee build.log
+          cp build/app/outputs/flutter-apk/app-release.apk znicz.apk
+      - name: Zgłoś błędy
+        if: failure()
+        run: |
+          bash .github/report.sh analyze.log test.log build.log
+      - name: Zapisz logi (gałąź ci-logs-build)
+        if: always()
+        run: |
+          mkdir -p /tmp/l && cp analyze.log test.log build.log /tmp/l/ 2>/dev/null || true
+          cd /tmp/l && git init -q && git checkout -q -b ci-logs-build
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -qm "logi ${{ github.run_number }}" || true
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs-build || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: znicz.apk
+
+  ios:
+    # iOS tylko na żądanie (Actions → Run workflow) albo gdy opis commita zawiera [ios]
+    needs: bootstrap
+    if: (github.event_name == 'workflow_dispatch' && inputs.ios) || contains(github.event.head_commit.message, '[ios]')
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build iOS (bez podpisu)
+        run: |
+          set -o pipefail
+          flutter pub get
+          flutter build ios --release --no-codesign --build-name=1.0.${{ github.run_number }} --build-number=${{ github.run_number }} 2>&1 | tee build.log
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qr znicz.ipa Payload
+      - name: Zgłoś błędy
+        if: failure()
+        run: |
+          grep -E "error:|\*\* BUILD FAILED|Signing|requires a development team|provisioning" build.log | grep -v "^\[" | head -40 > ios_err.log || true
+          bash .github/report.sh ios_err.log build.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: znicz.ipa
+
+  smoke:
+    # Uruchamia wersję release na emulatorze Androida (na żądanie lub [smoke] w commicie).
+    needs: bootstrap
+    if: (github.event_name == 'workflow_dispatch' && inputs.smoke) || contains(github.event.head_commit.message, '[smoke]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Zwolnij miejsce na dysku
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/lib/node_modules /usr/share/swift || true
+          sudo docker image prune -af > /dev/null 2>&1 || true
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build APK x86_64 (dla emulatora)
+        run: |
+          flutter pub get
+          flutter build apk --release --target-platform android-x64
+          cp build/app/outputs/flutter-apk/app-release.apk /tmp/smoke.apk
+          rm -rf build android/.gradle ~/.gradle/caches
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test na emulatorze
+        run: |
+          timeout 1500 bash .github/emulator.sh /tmp/smoke.apk > smoke.log 2>&1; echo $? > smoke.rc
+          tail -80 smoke.log
+      - name: Zapisz logi testu (gałąź ci-logs)
+        if: always()
+        run: |
+          mkdir -p /tmp/l && cp smoke.log smoke.rc logcat.txt logcat_err.txt ui.xml screen.png screen2.png emu.log sdk.log /tmp/l/ 2>/dev/null || true
+          cd /tmp/l && git init -q && git checkout -q -b ci-logs
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -qm "logi testu ${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs
+      - name: Wynik
+        run: '[ "$(cat smoke.rc)" = "0" ]'
+
+  release:
+    needs: [android, ios]
+    if: always() && needs.android.result == 'success' && needs.ios.result != 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+      - name: Opublikuj w Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Znicz 1.0.${{ github.run_number }}
+          body: |
+            **Android:** pobierz `znicz.apk` na telefonie i zainstaluj (aktualizuje poprzednią wersję, dane zostają).
+            **iPhone:** pobierz `znicz.ipa` na komputer i zainstaluj przez Sideloadly lub AltStore swoim Apple ID (odnawianie co 7 dni).
+          files: out/**/*
+          fail_on_unmatched_files: false
+          make_latest: true
