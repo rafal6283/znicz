@@ -27,7 +27,10 @@ enum _LocSource { none, gps, map, photo, saved }
 /// Dodawanie i edycja grobu. Dla nowego grobu od razu zbiera pozycję GPS (stań przy grobie).
 class GraveEditScreen extends StatefulWidget {
   final int? graveId;
-  const GraveEditScreen({super.key, this.graveId});
+  final double? lat; // nowy grób w miejscu wskazanym na mapie
+  final double? lng;
+  final int? cemeteryId;
+  const GraveEditScreen({super.key, this.graveId, this.lat, this.lng, this.cemeteryId});
   @override
   State<GraveEditScreen> createState() => _GraveEditScreenState();
 }
@@ -99,7 +102,17 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
       }
     }
     if (mounted) setState(() => _loading = false);
-    if (isNew) _startGps();
+    if (isNew && widget.lat != null) {
+      setState(() {
+        _lat = widget.lat;
+        _lng = widget.lng;
+        _src = _LocSource.map;
+        _cemId = widget.cemeteryId;
+      });
+      if (_cemId == null) _autoCemetery();
+    } else if (isNew) {
+      _startGps();
+    }
   }
 
   @override
@@ -147,7 +160,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
 
   /// Nowy grób: wybierz cmentarz w promieniu 1,5 km (pierwszy dobry odczyt).
   Future<void> _autoCemetery() async {
-    if (_cemAuto || !isNew || _cemId != null || _newCemName != null || _lat == null || (_acc ?? 999) > 60) return;
+    if (_cemAuto || !isNew || _cemId != null || _newCemName != null || _lat == null || (_src != _LocSource.map && (_acc ?? 999) > 60)) return;
     _cemAuto = true;
     final views = await AppDb.I.graveViews();
     double? best;

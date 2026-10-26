@@ -96,4 +96,10 @@ void main() {
     final pts = [for (var i = 0; i < 1000; i++) (52.0 + i * 1e-5, 21.0)];
     expect(simplifyOutline(pts, 300).length, lessThanOrEqualTo(300));
   });
+
+  test('miejscowość z Nominatim', () {
+    expect(Osm.townFromNominatim({'address': {'village': 'Celestynów', 'county': 'powiat otwocki'}}), 'Celestynów');
+    expect(Osm.townFromNominatim({'address': {'city': 'Otwock'}}), 'Otwock');
+    expect(Osm.townFromNominatim({}), isNull);
+  });
 }

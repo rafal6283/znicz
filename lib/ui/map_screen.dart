@@ -7,8 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db.dart';
 import '../data/models.dart';
+import '../logic/geo.dart';
 import '../services/location.dart';
 import 'common.dart';
+import 'grave_detail.dart';
+import 'grave_edit.dart';
 import 'graves_list.dart';
 import 'nearby_cemeteries.dart';
 
@@ -168,6 +171,58 @@ class _MapScreenState extends State<MapScreen> {
     _map.move(_me!, 17);
   }
 
+  /// Przytrzymanie palca na mapie: dodaj grób albo cmentarz w tym miejscu.
+  Future<void> _longPress(LatLng p) async {
+    Cemetery? inside;
+    for (final c in _cems) {
+      if (pointInPolygon(p.latitude, p.longitude, c.outline)) inside = c;
+    }
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.add_location_alt_outlined),
+            title: const Text('Dodaj grób w tym miejscu'),
+            subtitle: inside != null ? Text(inside.label) : null,
+            onTap: () => Navigator.pop(c, 'grave'),
+          ),
+          if (inside == null)
+            ListTile(
+              leading: const Icon(Icons.park_outlined),
+              title: const Text('Dodaj cmentarz w tym miejscu'),
+              onTap: () => Navigator.pop(c, 'cem'),
+            ),
+          ListTile(
+            leading: const Icon(Icons.travel_explore),
+            title: const Text('Szukaj cmentarzy w tej okolicy'),
+            onTap: () => Navigator.pop(c, 'search'),
+          ),
+        ]),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'grave':
+        final id = await Navigator.push<int>(
+            context, MaterialPageRoute(builder: (_) => GraveEditScreen(lat: p.latitude, lng: p.longitude, cemeteryId: inside?.id)));
+        if (id != null && mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => GraveDetailScreen(graveId: id)));
+      case 'cem':
+        await showModalBottomSheet<Cemetery>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (c) => Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+            child: QuickCemeterySheet(draft: Cemetery(name: '', lat: p.latitude, lng: p.longitude), fromOsm: false),
+          ),
+        );
+      case 'search':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: p.latitude, lng: p.longitude, zoom: 14)));
+    }
+  }
+
   void _fitAll() {
     final pts = _points;
     if (pts.isEmpty) return;
@@ -189,6 +244,7 @@ class _MapScreenState extends State<MapScreen> {
       initialCameraFit: pts.length > 1 ? CameraFit.bounds(bounds: LatLngBounds.fromPoints(pts), padding: const EdgeInsets.all(56), maxZoom: 18) : null,
       maxZoom: 22,
       onTap: (_, __) => setState(() => _selected = null),
+      onLongPress: (_, p) => _longPress(p),
     );
     final markers = <Marker>[
       for (final c in _cems)
@@ -254,7 +310,13 @@ class _MapScreenState extends State<MapScreen> {
                   tooltip: 'Cmentarze w pobliżu',
                   onPressed: () {
                     final c = _map.camera.center;
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: _me != null ? null : c.latitude, lng: _me != null ? null : c.longitude)));
+                    final z = _map.camera.zoom;
+                    // obszar widoczny teraz na mapie; z bardzo daleka – okolica Twojej pozycji
+                    if (z < 9) {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NearbyCemeteriesScreen()));
+                    } else {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: c.latitude, lng: c.longitude, zoom: z)));
+                    }
                   },
                   child: const Icon(Icons.travel_explore),
                 ),

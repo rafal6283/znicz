@@ -105,6 +105,39 @@ class Osm {
     return parseCemeteries(await _query(q), lat, lng);
   }
 
+  /// Cmentarze w prostokącie widocznym na mapie (płd., zach., płn., wsch.).
+  /// [refLat]/[refLng] – punkt, od którego liczona jest odległość (np. Twoja pozycja albo środek mapy).
+  static Future<List<OsmCemetery>> cemeteriesInBox(double s, double w, double n, double e, double refLat, double refLng) async {
+    final b = '(${s.toStringAsFixed(5)},${w.toStringAsFixed(5)},${n.toStringAsFixed(5)},${e.toStringAsFixed(5)})';
+    final q = '[out:json][timeout:40];('
+        'way["landuse"="cemetery"]$b;relation["landuse"="cemetery"]$b;'
+        'way["amenity"="grave_yard"]$b;relation["amenity"="grave_yard"]$b;node["amenity"="grave_yard"]$b;'
+        ');out geom;';
+    return parseCemeteries(await _query(q), refLat, refLng);
+  }
+
+  /// Nazwa miejscowości dla punktu (Nominatim, OpenStreetMap). Null, gdy się nie uda.
+  static Future<String?> townAt(double lat, double lng) async {
+    try {
+      final uri = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=pl'
+          '&lat=${lat.toStringAsFixed(6)}&lon=${lng.toStringAsFixed(6)}');
+      final res = await http.get(uri, headers: {'User-Agent': 'Znicz/1.0 (prywatna aplikacja do notowania grobow)'}).timeout(const Duration(seconds: 12));
+      if (res.statusCode != 200) return null;
+      return townFromNominatim(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? townFromNominatim(Map<String, dynamic> j) {
+    final a = (j['address'] as Map?) ?? const {};
+    for (final k in ['village', 'town', 'city', 'hamlet', 'suburb', 'municipality']) {
+      final v = a[k];
+      if (v is String && v.isNotEmpty) return v;
+    }
+    return null;
+  }
+
   static Future<List<OsmGrave>> gravesIn(List<(double, double)> outline, double lat, double lng) async {
     double s, w, n, e;
     if (outline.length >= 3) {
