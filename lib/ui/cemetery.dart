@@ -8,6 +8,7 @@ import '../services/location.dart';
 import 'common.dart';
 import 'graves_list.dart';
 import 'map_screen.dart';
+import 'nearby_cemeteries.dart';
 
 Future<void> openExternalNavigation(BuildContext context, double lat, double lng, {String? label, bool walking = false}) async {
   final mode = walking ? 'walking' : 'driving';
@@ -199,7 +200,9 @@ class _CemeteryScreenState extends State<CemeteryScreen> {
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {
-              if (v == 'del') {
+              if (v == 'osm') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => OsmGravesScreen(cemetery: c)));
+              } else if (v == 'del') {
                 final ok = await confirm(context, 'Usunąć cmentarz?', 'Groby (${_graves.length}) zostaną, ale bez przypisanego cmentarza.');
                 if (ok) {
                   await AppDb.I.deleteCemetery(c.id!);
@@ -207,7 +210,10 @@ class _CemeteryScreenState extends State<CemeteryScreen> {
                 }
               }
             },
-            itemBuilder: (_) => const [PopupMenuItem(value: 'del', child: Text('Usuń cmentarz'))],
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'osm', child: Text('Groby opisane w OpenStreetMap')),
+              const PopupMenuItem(value: 'del', child: Text('Usuń cmentarz')),
+            ],
           ),
         ],
       ),

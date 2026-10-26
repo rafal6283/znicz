@@ -103,3 +103,36 @@ List<int> visitOrder(List<(double, double)> points, {(double, double)? start}) {
   }
   return order;
 }
+
+/// Czy punkt leży wewnątrz wielokąta (obrysu cmentarza). Algorytm promienia.
+bool pointInPolygon(double lat, double lng, List<(double, double)> poly) {
+  if (poly.length < 3) return false;
+  var inside = false;
+  for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    final (yi, xi) = poly[i];
+    final (yj, xj) = poly[j];
+    if ((yi > lat) != (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/// Środek ciężkości punktów (wystarczający dla małych obszarów jak cmentarz).
+(double, double) centroid(List<(double, double)> pts) {
+  var a = 0.0, b = 0.0;
+  for (final p in pts) {
+    a += p.$1;
+    b += p.$2;
+  }
+  return (a / pts.length, b / pts.length);
+}
+
+/// Odległość od punktu do obszaru: 0 wewnątrz, inaczej do najbliższego wierzchołka.
+double distanceToArea(double lat, double lng, List<(double, double)> poly, double cLat, double cLng) {
+  if (poly.length >= 3) {
+    if (pointInPolygon(lat, lng, poly)) return 0;
+    return poly.map((p) => distanceM(lat, lng, p.$1, p.$2)).reduce(min);
+  }
+  return distanceM(lat, lng, cLat, cLng);
+}
+
+double cosDeg(double d) => cos(_rad(d));

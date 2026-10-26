@@ -42,17 +42,24 @@ class AppDb extends ChangeNotifier {
   Future<void> _open() async {
     _db = await openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onConfigure: (d) async => d.execute('PRAGMA foreign_keys = ON'),
+      onUpgrade: (d, from, to) async {
+        if (from < 2) {
+          await d.execute('ALTER TABLE cemeteries ADD COLUMN osm_id TEXT');
+          await d.execute('ALTER TABLE cemeteries ADD COLUMN outline TEXT');
+          await d.execute('ALTER TABLE graves ADD COLUMN osm_id TEXT');
+        }
+      },
       onCreate: (d, v) async {
         const sync = 'uid TEXT NOT NULL UNIQUE, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0';
         await d.execute('''CREATE TABLE cemeteries(
           id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, town TEXT, address TEXT, lat REAL, lng REAL,
-          kind TEXT, phone TEXT, hours TEXT, search_url TEXT, notes TEXT, $sync)''');
+          kind TEXT, phone TEXT, hours TEXT, search_url TEXT, notes TEXT, osm_id TEXT, outline TEXT, $sync)''');
         await d.execute('''CREATE TABLE graves(
           id INTEGER PRIMARY KEY AUTOINCREMENT, cemetery_id INTEGER REFERENCES cemeteries(id) ON DELETE SET NULL,
           lat REAL, lng REAL, accuracy REAL, section TEXT, row_no TEXT, number TEXT, type TEXT, directions TEXT,
-          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, $sync)''');
+          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, osm_id TEXT, $sync)''');
         await d.execute('''CREATE TABLE people(
           id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
           first_name TEXT, last_name TEXT, maiden_name TEXT, birth TEXT, death TEXT, burial TEXT, relation TEXT,

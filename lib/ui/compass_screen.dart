@@ -13,6 +13,7 @@ import '../services/location.dart';
 import 'cemetery.dart';
 import 'common.dart';
 import 'map_screen.dart';
+import 'nearby_cemeteries.dart';
 import 'visit_edit.dart';
 
 /// Prowadzenie do grobu: strzałka kompasu + odległość + mapa (jak w BillionGraves).
@@ -210,6 +211,7 @@ class _CompassScreenState extends State<CompassScreen> {
               ),
               children: [
                 ...MapLayers.tiles(),
+                if (g.cemetery != null) cemeteryPolygons([g.cemetery!.outline], cs.tertiary),
                 if (me != null)
                   PolylineLayer(polylines: [
                     Polyline(points: [me, LatLng(_tLat, _tLng)], strokeWidth: 3, color: cs.primary.withValues(alpha: 0.7), pattern: StrokePattern.dashed(segments: const [8, 6])),

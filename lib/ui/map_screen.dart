@@ -10,6 +10,7 @@ import '../data/models.dart';
 import '../services/location.dart';
 import 'common.dart';
 import 'graves_list.dart';
+import 'nearby_cemeteries.dart';
 
 const _poland = LatLng(52.07, 19.48);
 
@@ -223,6 +224,7 @@ class _MapScreenState extends State<MapScreen> {
           options: options,
           children: [
             ...MapLayers.tiles(),
+            cemeteryPolygons(_cems.map((c) => c.outline), cs.tertiary),
             MarkerLayer(markers: markers),
             MapLayers.attribution(),
           ],
@@ -246,6 +248,16 @@ class _MapScreenState extends State<MapScreen> {
                 FloatingActionButton.small(heroTag: 'm_fit', tooltip: 'Pokaż wszystkie', onPressed: _fitAll, child: const Icon(Icons.zoom_out_map)),
                 const SizedBox(height: 8),
                 FloatingActionButton.small(heroTag: 'm_me', tooltip: 'Moja pozycja', onPressed: _locate, child: const Icon(Icons.my_location)),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'm_near',
+                  tooltip: 'Cmentarze w pobliżu',
+                  onPressed: () {
+                    final c = _map.camera.center;
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: _me != null ? null : c.latitude, lng: _me != null ? null : c.longitude)));
+                  },
+                  child: const Icon(Icons.travel_explore),
+                ),
               ]),
             ),
           ),

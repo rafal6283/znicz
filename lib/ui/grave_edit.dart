@@ -19,6 +19,7 @@ import 'common.dart';
 import 'dictation.dart';
 import 'guess_review.dart';
 import 'map_screen.dart';
+import 'nearby_cemeteries.dart';
 import 'person_edit.dart';
 
 enum _LocSource { none, gps, map, photo, saved }
@@ -151,6 +152,13 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
     final views = await AppDb.I.graveViews();
     double? best;
     int? bestId;
+    // najpierw obrys cmentarza (z OpenStreetMap) – stoisz w jego granicach
+    for (final c in _cems) {
+      if (pointInPolygon(_lat!, _lng!, c.outline)) {
+        if (mounted && _cemId == null) setState(() => _cemId = c.id);
+        return;
+      }
+    }
     for (final c in _cems) {
       final pts = <(double, double)>[
         if (c.hasLocation) (c.lat!, c.lng!),
@@ -374,6 +382,24 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
     setState(() {
       _cemId = c.id;
       _newCemName = null;
+    });
+  }
+
+  Future<void> _nearby() async {
+    final before = _cems.map((c) => c.id).toSet();
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: _lat, lng: _lng)));
+    _cems = await AppDb.I.cemeteries();
+    if (!mounted) return;
+    final added = _cems.where((c) => !before.contains(c.id)).toList();
+    setState(() {
+      // wybierz dodany cmentarz, w którego granicach jest grób (albo jedyny dodany)
+      final inside = _lat == null ? <Cemetery>[] : added.where((c) => pointInPolygon(_lat!, _lng!, c.outline)).toList();
+      if (inside.isNotEmpty) {
+        _cemId = inside.first.id;
+      } else if (added.length == 1) {
+        _cemId = added.first.id;
+      }
+      if (_cemId != null) _newCemName = null;
     });
   }
 
@@ -625,6 +651,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
               }),
             ),
           ),
+          IconButton(tooltip: 'Cmentarze w pobliżu (mapa)', onPressed: _nearby, icon: const Icon(Icons.travel_explore)),
           IconButton(tooltip: 'Nowy cmentarz', onPressed: _newCemetery, icon: const Icon(Icons.add_circle_outline)),
         ]),
         const SizedBox(height: 12),

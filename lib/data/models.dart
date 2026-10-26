@@ -121,11 +121,30 @@ class Cemetery {
   String? hours;
   String? searchUrl; // np. strona wyszukiwarki grobów tego cmentarza
   String? notes;
+  String? osmId; // np. way/123456 – cmentarz zaimportowany z OpenStreetMap
+  List<(double, double)> outline; // obrys cmentarza (szer., dł.)
   String uid;
   int updated;
   bool deleted;
 
-  Cemetery({this.id, required this.name, this.town, this.address, this.lat, this.lng, this.kind, this.phone, this.hours, this.searchUrl, this.notes, String? uid, int? updated, this.deleted = false})
+  Cemetery({
+    this.id,
+    required this.name,
+    this.town,
+    this.address,
+    this.lat,
+    this.lng,
+    this.kind,
+    this.phone,
+    this.hours,
+    this.searchUrl,
+    this.notes,
+    this.osmId,
+    List<(double, double)>? outline,
+    String? uid,
+    int? updated,
+    this.deleted = false,
+  })  : outline = outline ?? const [],
       : uid = uid ?? newUid(),
         updated = updated ?? nowMs();
 
@@ -145,6 +164,8 @@ class Cemetery {
         'hours': hours,
         'search_url': searchUrl,
         'notes': notes,
+        'osm_id': osmId,
+        'outline': encodeOutline(outline),
         'uid': uid,
         'updated': updated,
         'deleted': deleted ? 1 : 0,
@@ -162,10 +183,28 @@ class Cemetery {
         hours: m['hours'] as String?,
         searchUrl: m['search_url'] as String?,
         notes: m['notes'] as String?,
+        osmId: m['osm_id'] as String?,
+        outline: decodeOutline(m['outline'] as String?),
         uid: m['uid'] as String?,
         updated: m['updated'] as int?,
         deleted: (m['deleted'] as int? ?? 0) == 1,
       );
+}
+
+/// Obrys jako tekst „lat,lng;lat,lng;…” (6 miejsc po przecinku ≈ 10 cm).
+String? encodeOutline(List<(double, double)> pts) =>
+    pts.isEmpty ? null : pts.map((p) => '${p.$1.toStringAsFixed(6)},${p.$2.toStringAsFixed(6)}').join(';');
+
+List<(double, double)> decodeOutline(String? s) {
+  if (s == null || s.isEmpty) return const [];
+  final out = <(double, double)>[];
+  for (final part in s.split(';')) {
+    final xy = part.split(',');
+    if (xy.length != 2) continue;
+    final a = double.tryParse(xy[0]), b = double.tryParse(xy[1]);
+    if (a != null && b != null) out.add((a, b));
+  }
+  return out;
 }
 
 const graveTypes = ['ziemny', 'murowany', 'grobowiec rodzinny', 'urnowy', 'kolumbarium (nisza)', 'katakumby', 'inny'];
@@ -186,6 +225,7 @@ class Grave {
   bool allSaints; // na liście do odwiedzenia 1 listopada
   bool favorite;
   int created;
+  String? osmId; // grób zaimportowany z OpenStreetMap
   String uid;
   int updated;
   bool deleted;
@@ -206,6 +246,7 @@ class Grave {
     this.allSaints = true,
     this.favorite = false,
     int? created,
+    this.osmId,
     String? uid,
     int? updated,
     this.deleted = false,
@@ -240,6 +281,7 @@ class Grave {
         'all_saints': allSaints ? 1 : 0,
         'favorite': favorite ? 1 : 0,
         'created': created,
+        'osm_id': osmId,
         'uid': uid,
         'updated': updated,
         'deleted': deleted ? 1 : 0,
@@ -261,6 +303,7 @@ class Grave {
         allSaints: (m['all_saints'] as int? ?? 1) == 1,
         favorite: (m['favorite'] as int? ?? 0) == 1,
         created: m['created'] as int?,
+        osmId: m['osm_id'] as String?,
         uid: m['uid'] as String?,
         updated: m['updated'] as int?,
         deleted: (m['deleted'] as int? ?? 0) == 1,

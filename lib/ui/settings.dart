@@ -9,6 +9,7 @@ import '../sync/sync_service.dart';
 import 'cemetery.dart';
 import 'common.dart';
 import 'grave_detail.dart';
+import 'nearby_cemeteries.dart';
 import 'sync_settings.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -159,10 +160,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ],
         SectionTitle('Cmentarze (${_cems.length})', trailing: IconButton(
-          tooltip: 'Dodaj cmentarz',
+          tooltip: 'Dodaj cmentarz ręcznie',
           icon: const Icon(Icons.add),
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CemeteryEditScreen())),
         )),
+        ListTile(
+          leading: const Icon(Icons.travel_explore),
+          title: const Text('Cmentarze w pobliżu'),
+          subtitle: const Text('Z mapy OpenStreetMap – z obrysem i położeniem'),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NearbyCemeteriesScreen())),
+        ),
         for (final c in _cems)
           ListTile(
             leading: const Icon(Icons.park_outlined),
