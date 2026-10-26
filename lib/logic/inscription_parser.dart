@@ -156,7 +156,7 @@ List<PersonGuess> parseInscription(String raw) {
 
   void flush() {
     if (currentName == null) return;
-    final g = splitName(currentName!);
+    final g = splitName(currentName);
     _assignDates(g, buf.toString());
     people.add(g);
     buf.clear();

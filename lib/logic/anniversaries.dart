@@ -15,9 +15,9 @@ class UpcomingEvent {
   String get title {
     switch (kind) {
       case EventKind.death:
-        return '${years}. rocznica śmierci – ${person!.fullName}';
+        return '$years. rocznica śmierci – ${person!.fullName}';
       case EventKind.birth:
-        return '${years}. rocznica urodzin – ${person!.fullName}';
+        return '$years. rocznica urodzin – ${person!.fullName}';
       case EventKind.fee:
         return 'Kończy się opłata za grób';
       case EventKind.allSaints:

@@ -64,7 +64,7 @@ class Storage {
           }
         }
       }
-      return Uint8List.fromList(ZipEncoder().encode(archive)!);
+      return Uint8List.fromList(ZipEncoder().encode(archive));
     } finally {
       await db.reopen();
     }
@@ -145,7 +145,7 @@ class Storage {
     final title = people.isEmpty ? 'grob' : people.map((x) => x.lastName.isEmpty ? x.firstName : x.lastName).toSet().join('-');
     final safe = title.replaceAll(RegExp(r'[^\p{L}\p{N}\-]+', unicode: true), '_');
     final out = File(p.join(tempDir, 'grob-$safe.znicz'));
-    await out.writeAsBytes(ZipEncoder().encode(archive)!, flush: true);
+    await out.writeAsBytes(ZipEncoder().encode(archive), flush: true);
     return out;
   }
 

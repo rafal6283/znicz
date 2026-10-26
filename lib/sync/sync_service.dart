@@ -91,7 +91,7 @@ class SyncStats {
 }
 
 /// Synchronizacja przez WebDAV (np. Synology NAS). Na serwerze:
-///   cmentarze/<uid>.json, groby/<uid>.json (z osobami, zdjęciami i wizytami), zdjecia/<uid>.jpg
+/// `cmentarze/UID.json`, `groby/UID.json` (z osobami, zdjęciami i wizytami), `zdjecia/UID.jpg`
 class SyncService extends ChangeNotifier {
   SyncService._();
   static final SyncService I = SyncService._();

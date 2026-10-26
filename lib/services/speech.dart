@@ -37,10 +37,14 @@ class Speech {
         onResult(r.recognizedWords, r.finalResult);
         if (r.finalResult) onDone?.call();
       },
-      localeId: _locale,
-      listenFor: const Duration(seconds: 90),
-      pauseFor: const Duration(seconds: 5),
-      listenOptions: SpeechListenOptions(partialResults: true, listenMode: ListenMode.dictation, cancelOnError: true),
+      listenOptions: SpeechListenOptions(
+        localeId: _locale,
+        listenFor: const Duration(seconds: 90),
+        pauseFor: const Duration(seconds: 5),
+        partialResults: true,
+        listenMode: ListenMode.dictation,
+        cancelOnError: true,
+      ),
     );
   }
 
