@@ -31,11 +31,12 @@ x=open('ui.xml',encoding='utf-8',errors='ignore').read()
 pat=sys.argv[1]
 for m in re.finditer(r'<node [^>]*>',x):
     n=m.group(0)
-    t=re.search(r'(?:text|content-desc)="([^"]*)"',n)
-    if t and re.search(pat,t.group(1)):
+    vals=[v for v in re.findall(r'(?:text|content-desc)="([^"]*)"',n) if v]
+    t=next((v for v in vals if re.search(pat,v)),None)
+    if t:
         b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
         if b:
-            a,bb,c,d=map(int,b.groups()); subprocess.run(['adb','shell','input','tap',str((a+c)//2),str((bb+d)//2)]); print('tap',t.group(1)[:40]); sys.exit(0)
+            a,bb,c,d=map(int,b.groups()); subprocess.run(['adb','shell','input','tap',str((a+c)//2),str((bb+d)//2)]); print('tap',t[:40]); sys.exit(0)
 print('nie znaleziono',pat); sys.exit(1)
 PY
 }
