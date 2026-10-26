@@ -167,27 +167,30 @@ class SyncService extends ChangeNotifier {
     return dav.list('');
   }
 
-  /// Podpowiedź, gdy folderu nie ma: co faktycznie jest piętro wyżej.
+  /// Podpowiedź, gdy folderu nie ma: idzie w górę adresu do pierwszego folderu, który da się otworzyć,
+  /// i pokazuje, co w nim jest (np. jak serwer nazywa miejsca w głównym katalogu).
   static Future<String> _missingHelp(SyncConfig cfg) async {
     final base = WebDav.normalizeBase(cfg.url);
     final segs = base.pathSegments.where((s) => s.isNotEmpty).toList();
     final name = segs.isEmpty ? '' : segs.last;
-    final parent = base.resolve('..');
-    final dav = WebDav(parent.toString(), cfg.user, cfg.password, allowSelfSigned: cfg.allowSelfSigned);
-    try {
-      final items = await dav.list('');
-      if (items == null) {
-        return 'Nie ma folderu „$name” ani folderu nadrzędnego ${Uri.decodeFull(parent.path)}. Sprawdź adres.';
+    for (var up = 1; up < segs.length; up++) {
+      final path = '/${segs.sublist(0, segs.length - up).join('/')}/';
+      final dav = WebDav(base.replace(path: path).toString(), cfg.user, cfg.password, allowSelfSigned: cfg.allowSelfSigned);
+      try {
+        final items = await dav.list('');
+        if (items == null) continue;
+        final dirs = items.where((e) => e.isDir).map((e) => e.name).toList();
+        final missing = segs.sublist(segs.length - up).join('/');
+        return 'Serwer nie widzi „$missing” w ${Uri.decodeFull(path)}. '
+            '${dirs.isEmpty ? 'Ten folder jest pusty.' : 'Są tam: ${dirs.join(', ')}.'} '
+            'Wielkość liter ma znaczenie – popraw adres.';
+      } catch (e) {
+        return 'Folder „$name” nie istnieje i nie udało się sprawdzić folderów wyżej ($e).';
+      } finally {
+        dav.close();
       }
-      final dirs = items.where((e) => e.isDir).map((e) => e.name).toList();
-      return 'Nie udało się otworzyć ani utworzyć folderu „$name”. '
-          '${dirs.isEmpty ? 'W ${Uri.decodeFull(parent.path)} nie ma żadnych folderów.' : 'W ${Uri.decodeFull(parent.path)} są foldery: ${dirs.join(', ')}.'} '
-          'Wielkość liter ma znaczenie – popraw adres albo utwórz folder „$name”.';
-    } catch (e) {
-      return 'Folder „$name” nie istnieje i nie udało się go utworzyć ($e).';
-    } finally {
-      dav.close();
     }
+    return 'Folder „$name” nie istnieje i nie udało się go utworzyć. Sprawdź adres.';
   }
 
   static Future<String?> test(SyncConfig cfg) async {
