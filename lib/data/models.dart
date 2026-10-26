@@ -145,7 +145,7 @@ class Cemetery {
     int? updated,
     this.deleted = false,
   })  : outline = outline ?? const [],
-      : uid = uid ?? newUid(),
+        uid = uid ?? newUid(),
         updated = updated ?? nowMs();
 
   bool get hasLocation => lat != null && lng != null;
