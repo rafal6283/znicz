@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:koofr_backup_ui/koofr_backup_ui.dart' show KoofrBackup;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/db.dart';
+import 'data/koofr_backup.dart';
 import 'services/notifications.dart';
 import 'sync/sync_service.dart';
 import 'ui/common.dart';
@@ -31,6 +33,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
     // w tle – nie blokują startu
     Notifications.reschedule();
     SyncService.I.loadStatus().then((_) => SyncService.I.syncNow(quiet: true));
+    KoofrBackup.setup(ZniczBackup()).ignore();
   }
 
   @override

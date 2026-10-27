@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:koofr_backup_ui/koofr_backup_ui.dart' show KoofrBackupTile, KoofrConfig;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db.dart';
+import '../data/koofr_backup.dart';
 import '../data/models.dart';
 import '../data/storage.dart';
 import '../services/notifications.dart';
@@ -178,6 +180,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: c.id!))),
           ),
         const SectionTitle('Dane'),
+        FutureBuilder<KoofrConfig?>(
+          future: koofrFromFamilySync(),
+          builder: (c, snap) => KoofrBackupTile(suggestedConfig: snap.data),
+        ),
         ListTile(
           leading: const Icon(Icons.file_open_outlined),
           title: const Text('Importuj grób z pliku'),
