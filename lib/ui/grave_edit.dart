@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../data/db.dart';
 import '../data/models.dart';
@@ -206,26 +208,64 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
 
   // ---------- zdjęcie nagrobka + odczyt napisu ----------
 
+  /// Android ukrywa współrzędne w zdjęciach przed aplikacjami bez zgody „dostęp do lokalizacji multimediów”.
+  static Future<void> _mediaLocationPermission() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await Permission.accessMediaLocation.request();
+    } catch (_) {}
+  }
+
+  /// Jeśli zdjęcie ma współrzędne GPS – proponuje je jako miejsce grobu. Zwraca true, gdy przyjęto.
+  Future<bool> _offerPhotoLocation(String path, {bool explicit = false}) async {
+    final meta = await readPhotoMeta(path);
+    if (!mounted) return false;
+    if (meta.lat == null) {
+      if (explicit) {
+        snack(context, 'To zdjęcie nie ma zapisanej lokalizacji. Włącz w aparacie „Zapisuj lokalizację” (tagi lokalizacji) i rób zdjęcia przy grobie.');
+      }
+      return false;
+    }
+    final when = meta.taken != null ? ' (zrobione ${fmtDate(meta.taken!)})' : '';
+    var body = 'Zdjęcie ma zapisaną pozycję GPS$when. Użyć jej jako miejsca grobu?';
+    if (_lat != null) {
+      final d = distanceM(_lat!, _lng!, meta.lat!, meta.lng!);
+      // to samo miejsce – nie ma o co pytać
+      if (d < 20 && !explicit) return false;
+      body = 'Zdjęcie zrobiono$when ${formatDistance(d)} od obecnie ustalonego miejsca. Użyć położenia ze zdjęcia?';
+    }
+    final use = explicit && _lat == null ? true : await confirm(context, 'Położenie ze zdjęcia', body, ok: 'Użyj', destructive: false);
+    if (!use || !mounted) return false;
+    _stopGps();
+    setState(() {
+      _lat = meta.lat;
+      _lng = meta.lng;
+      _acc = 15; // GPS aparatu bywa mniej dokładny niż uśrednianie przy grobie
+      _src = _LocSource.photo;
+    });
+    _autoCemetery();
+    return true;
+  }
+
+  /// Przycisk „Ze zdjęcia”: wybór zdjęcia z plików (oryginał z pełnymi metadanymi) tylko po położenie.
+  Future<void> _locationFromPhoto() async {
+    await _mediaLocationPermission();
+    final res = await FilePicker.platform.pickFiles(type: FileType.image);
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    if (await _offerPhotoLocation(path, explicit: true) && mounted) {
+      final add = await confirm(context, 'Dodać to zdjęcie do grobu?', 'Zdjęcie trafi do galerii tego grobu.', ok: 'Dodaj', destructive: false);
+      if (add) setState(() => _pendingPhotos.add(path));
+    }
+  }
+
   Future<void> _photo(ImageSource source, {bool readText = true}) async {
+    if (source == ImageSource.gallery) await _mediaLocationPermission();
     final x = await ImagePicker().pickImage(source: source, maxWidth: 2600, imageQuality: 88, requestFullMetadata: true);
     if (x == null || !mounted) return;
     // zdjęcie z galerii z GPS – może posłużyć za położenie grobu
-    if (source == ImageSource.gallery && (_src == _LocSource.none || (_src == _LocSource.gps && _samples == 0))) {
-      final meta = await readPhotoMeta(x.path);
-      if (meta.lat != null && mounted) {
-        final use = await confirm(context, 'Położenie ze zdjęcia', 'Zdjęcie ma zapisaną pozycję GPS${meta.taken != null ? ' (zrobione ${fmtDate(meta.taken!)})' : ''}. Użyć jej jako miejsca grobu?',
-            ok: 'Użyj', destructive: false);
-        if (use) {
-          _stopGps();
-          setState(() {
-            _lat = meta.lat;
-            _lng = meta.lng;
-            _acc = 15;
-            _src = _LocSource.photo;
-          });
-        }
-      }
-    }
+    if (source == ImageSource.gallery) await _offerPhotoLocation(x.path);
+    if (!mounted) return;
     setState(() => _pendingPhotos.add(x.path));
     if (!readText || !mounted) return;
 
@@ -548,6 +588,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
               else
                 OutlinedButton.icon(onPressed: _startGps, icon: const Icon(Icons.my_location), label: Text(_src == _LocSource.none ? 'Jestem przy grobie' : 'Ustal tutaj')),
               OutlinedButton.icon(onPressed: _pickOnMap, icon: const Icon(Icons.map_outlined), label: const Text('Na mapie')),
+              OutlinedButton.icon(onPressed: _locationFromPhoto, icon: const Icon(Icons.photo_outlined), label: const Text('Ze zdjęcia')),
               if (_lat != null && _src != _LocSource.gps)
                 TextButton(
                   onPressed: () => setState(() {
