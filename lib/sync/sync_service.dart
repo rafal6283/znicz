@@ -11,6 +11,7 @@ import '../data/db.dart';
 import '../data/models.dart';
 import '../services/notifications.dart';
 import 'bundle.dart';
+import 'family_crypto.dart';
 import 'webdav.dart';
 
 /// Ustawienia synchronizacji rodzinnej.
@@ -20,8 +21,9 @@ class SyncConfig {
   String password;
   bool allowSelfSigned;
   String myName; // podpis przy wizytach („Rafał”)
+  String familyKey; // klucz szyfrowania danych rodziny (base64url) albo '' — dane jawne
 
-  SyncConfig({this.url = '', this.user = '', this.password = '', this.allowSelfSigned = false, this.myName = ''});
+  SyncConfig({this.url = '', this.user = '', this.password = '', this.allowSelfSigned = false, this.myName = '', this.familyKey = ''});
 
   bool get isSet => url.trim().isNotEmpty;
 
@@ -29,9 +31,10 @@ class SyncConfig {
 
   static Future<SyncConfig> load() async {
     final p = await SharedPreferences.getInstance();
-    String pass = '';
+    String pass = '', key = '';
     try {
       pass = await _secure.read(key: 'sync_pass') ?? '';
+      key = await _secure.read(key: 'sync_family_key') ?? '';
     } catch (_) {}
     return SyncConfig(
       url: p.getString('sync_url') ?? '',
@@ -39,6 +42,7 @@ class SyncConfig {
       password: pass,
       allowSelfSigned: p.getBool('sync_self_signed') ?? false,
       myName: p.getString('sync_name') ?? '',
+      familyKey: key,
     );
   }
 
@@ -50,12 +54,13 @@ class SyncConfig {
     await p.setString('sync_name', myName.trim());
     try {
       await _secure.write(key: 'sync_pass', value: password);
+      await _secure.write(key: 'sync_family_key', value: familyKey);
     } catch (_) {}
   }
 
   /// Kod zaproszenia dla rodziny (adres + login + hasło), do wklejenia w ich aplikacji.
   String inviteCode() {
-    final j = jsonEncode({'u': url.trim(), 'l': user.trim(), 'p': password, 's': allowSelfSigned});
+    final j = jsonEncode({'u': url.trim(), 'l': user.trim(), 'p': password, 's': allowSelfSigned, if (familyKey.isNotEmpty) 'k': familyKey});
     return 'ZNICZ1-${base64Url.encode(utf8.encode(j)).replaceAll('=', '')}';
   }
 
@@ -68,7 +73,12 @@ class SyncConfig {
         b += '=';
       }
       final j = jsonDecode(utf8.decode(base64Url.decode(b))) as Map<String, dynamic>;
-      return SyncConfig(url: j['u'] as String? ?? '', user: j['l'] as String? ?? '', password: j['p'] as String? ?? '', allowSelfSigned: j['s'] == true);
+      return SyncConfig(
+          url: j['u'] as String? ?? '',
+          user: j['l'] as String? ?? '',
+          password: j['p'] as String? ?? '',
+          allowSelfSigned: j['s'] == true,
+          familyKey: j['k'] as String? ?? '');
     } catch (_) {
       return null;
     }
@@ -130,7 +140,7 @@ class SyncService extends ChangeNotifier {
     final dav = WebDav(cfg.url, cfg.user, cfg.password, allowSelfSigned: cfg.allowSelfSigned);
     final prefs = await SharedPreferences.getInstance();
     try {
-      final stats = await _run(dav);
+      final stats = await _run(dav, FamilyCrypto.fromKey(cfg.familyKey));
       lastSync = DateTime.now();
       lastResult = stats.toString();
       await prefs.setInt('sync_last', lastSync!.millisecondsSinceEpoch);
@@ -211,9 +221,28 @@ class SyncService extends ChangeNotifier {
 
   // ---------------------------------------------------------------------------
 
-  Future<SyncStats> _run(WebDav dav) async {
+  // ---------- szyfrowanie ----------
+
+  /// Odczyt pliku z serwera: (treść, czy była jawna). Zaszyfrowany bez klucza → czytelny błąd.
+  static Future<(List<int>, bool)> _dec(FamilyCrypto? fc, List<int> data, String path) async {
+    if (!FamilyCrypto.isSealed(data)) return (data, true);
+    if (fc == null) {
+      throw DavException('Dane rodziny są zaszyfrowane. Wklej aktualny kod zaproszenia od kogoś z rodziny.');
+    }
+    try {
+      return (await fc.open(data, path), false);
+    } on FormatException catch (e) {
+      throw DavException(e.message);
+    }
+  }
+
+  static Future<List<int>> _enc(FamilyCrypto? fc, List<int> data, String path) async =>
+      fc == null ? data : await fc.seal(data, path);
+
+  Future<SyncStats> _run(WebDav dav, FamilyCrypto? fc) async {
     final db = AppDb.I;
     final stats = SyncStats();
+    final prefs = await SharedPreferences.getInstance();
     final root = await _openRoot(dav);
     if (root == null) throw DavException(await _missingHelp(await SyncConfig.load()));
     for (final d in ['cmentarze', 'groby', 'zdjecia']) {
@@ -228,9 +257,11 @@ class SyncService extends ChangeNotifier {
       if (etag != null && etag == e.etag) continue;
       final got = await dav.get('cmentarze/${e.name}');
       if (got == null) continue;
-      final m = Map<String, Object?>.from(jsonDecode(utf8.decode(got.$1)) as Map);
+      final (body, plain) = await _dec(fc, got.$1, 'cmentarze/${e.name}');
+      final m = Map<String, Object?>.from(jsonDecode(utf8.decode(body)) as Map);
       if (await _mergeRecord('cemeteries', m)) stats.pulled++;
-      await db.setSyncState(key, etag: e.etag ?? got.$2, fp: fingerprintOf([m]));
+      // jawny plik przy włączonym szyfrowaniu — wymuś ponowne (zaszyfrowane) wysłanie
+      await db.setSyncState(key, etag: e.etag ?? got.$2, fp: plain && fc != null ? 'jawny' : fingerprintOf([m]));
     }
     for (final c in await db.cemeteries(withDeleted: true)) {
       final name = '${c.uid}.json';
@@ -239,11 +270,15 @@ class SyncService extends ChangeNotifier {
       final fp = fingerprintOf([m]);
       final (etag, rfp) = await db.syncState(key);
       if (rfp == fp) continue;
-      final newEtag = await _putWithRetry(dav, 'cmentarze/$name', utf8.encode(jsonEncode(m)), etag, exists: remoteC.containsKey(name), onConflict: () async {
-        final got = await dav.get('cmentarze/$name');
-        if (got != null) await _mergeRecord('cemeteries', Map<String, Object?>.from(jsonDecode(utf8.decode(got.$1)) as Map));
+      final path = 'cmentarze/$name';
+      final newEtag = await _putWithRetry(dav, path, await _enc(fc, utf8.encode(jsonEncode(m)), path), etag, exists: remoteC.containsKey(name), onConflict: () async {
+        final got = await dav.get(path);
+        if (got != null) {
+          final (body, _) = await _dec(fc, got.$1, path);
+          await _mergeRecord('cemeteries', Map<String, Object?>.from(jsonDecode(utf8.decode(body)) as Map));
+        }
         final fresh = (await db.cemeteries(withDeleted: true)).firstWhere((x) => x.uid == c.uid);
-        return utf8.encode(jsonEncode(fresh.toMap()..remove('id')));
+        return _enc(fc, utf8.encode(jsonEncode(fresh.toMap()..remove('id'))), path);
       });
       await db.setSyncState(key, etag: newEtag ?? '', fp: fp);
       stats.pushed++;
@@ -257,9 +292,10 @@ class SyncService extends ChangeNotifier {
       if (etag != null && etag == e.etag) continue;
       final got = await dav.get('groby/${e.name}');
       if (got == null) continue;
-      final b = GraveBundle.decode(got.$1);
+      final (body, plain) = await _dec(fc, got.$1, 'groby/${e.name}');
+      final b = GraveBundle.decode(body);
       stats.pulled += await _mergeBundle(b);
-      await db.setSyncState(key, etag: e.etag ?? got.$2, fp: b.fingerprint);
+      await db.setSyncState(key, etag: e.etag ?? got.$2, fp: plain && fc != null ? 'jawny' : b.fingerprint);
     }
     final graveRows = await db.db.query('graves', columns: ['id', 'uid']);
     for (final r in graveRows) {
@@ -270,10 +306,14 @@ class SyncService extends ChangeNotifier {
       final b = await _buildBundle(gid);
       final (etag, rfp) = await db.syncState(key);
       if (rfp == b.fingerprint) continue;
-      final newEtag = await _putWithRetry(dav, 'groby/$name', b.encode(), etag, exists: remoteG.containsKey(name), onConflict: () async {
-        final got = await dav.get('groby/$name');
-        if (got != null) await _mergeBundle(GraveBundle.decode(got.$1));
-        return (await _buildBundle(gid)).encode();
+      final path = 'groby/$name';
+      final newEtag = await _putWithRetry(dav, path, await _enc(fc, b.encode(), path), etag, exists: remoteG.containsKey(name), onConflict: () async {
+        final got = await dav.get(path);
+        if (got != null) {
+          final (body, _) = await _dec(fc, got.$1, path);
+          await _mergeBundle(GraveBundle.decode(body));
+        }
+        return _enc(fc, (await _buildBundle(gid)).encode(), path);
       });
       final sent = await _buildBundle(gid);
       await db.setSyncState(key, etag: newEtag ?? '', fp: sent.fingerprint);
@@ -283,6 +323,8 @@ class SyncService extends ChangeNotifier {
     // 3. zdjęcia: wyślij brakujące na serwerze, pobierz brakujące lokalnie, usuń skasowane
     final uploaded = await db.syncKeys('p/');
     final remoteP = {for (final e in (await dav.list('zdjecia')) ?? <DavEntry>[]) e.name};
+    // po włączeniu szyfrowania zdjęcia już leżące na serwerze trzeba raz wysłać ponownie (zaszyfrowane)
+    final reseal = fc != null && prefs.getString('sync_photos_sealed') != fnv64(await SyncConfig.load().then((c) => c.familyKey));
     for (final r in await db.db.query('photos')) {
       final ph = GravePhoto.fromMap(r);
       final file = _photoFileName(ph);
@@ -298,8 +340,9 @@ class SyncService extends ChangeNotifier {
       }
       final local = File(db.absPath(ph.path));
       final exists = await local.exists();
-      if (exists && !remoteP.contains(file)) {
-        await dav.put('zdjecia/$file', await local.readAsBytes(), contentType: _mime(file));
+      if (exists && (!remoteP.contains(file) || reseal)) {
+        await dav.put('zdjecia/$file', await _enc(fc, await local.readAsBytes(), 'zdjecia/$file'),
+            contentType: fc == null ? _mime(file) : 'application/octet-stream');
         await db.setSyncState(key, etag: '', fp: 'ok');
         stats.photosUp++;
       } else if (!exists && remoteP.contains(file)) {
@@ -308,7 +351,8 @@ class SyncService extends ChangeNotifier {
           final rel = p.join('zdjecia', file);
           final f = File(db.absPath(rel));
           await f.parent.create(recursive: true);
-          await f.writeAsBytes(got.$1, flush: true);
+          final (img, _) = await _dec(fc, got.$1, 'zdjecia/$file');
+          await f.writeAsBytes(img, flush: true);
           if (ph.path != rel) await db.db.update('photos', {'path': rel}, where: 'id=?', whereArgs: [ph.id]);
           await db.setSyncState(key, etag: '', fp: 'ok');
           stats.photosDown++;
@@ -317,6 +361,7 @@ class SyncService extends ChangeNotifier {
         await db.setSyncState(key, etag: '', fp: 'ok');
       }
     }
+    if (reseal) await prefs.setString('sync_photos_sealed', fnv64((await SyncConfig.load()).familyKey));
     return stats;
   }
 

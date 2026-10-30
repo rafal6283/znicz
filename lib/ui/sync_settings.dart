@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/db.dart';
+import '../sync/family_crypto.dart';
 import '../sync/sync_service.dart';
 import 'common.dart';
 
@@ -23,6 +24,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   String? _msg;
   bool _ok = false;
   String _origUrl = '';
+  String _key = ''; // klucz szyfrowania rodziny
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         _pass.text = c.password;
         _name.text = c.myName;
         _selfSigned = c.allowSelfSigned;
+        _key = c.familyKey;
       });
     });
   }
@@ -48,7 +51,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     super.dispose();
   }
 
-  SyncConfig get _cfg => SyncConfig(url: _url.text.trim(), user: _user.text.trim(), password: _pass.text, allowSelfSigned: _selfSigned, myName: _name.text.trim());
+  SyncConfig get _cfg => SyncConfig(
+      url: _url.text.trim(), user: _user.text.trim(), password: _pass.text, allowSelfSigned: _selfSigned, myName: _name.text.trim(), familyKey: _key);
 
   Future<void> _test() async {
     setState(() {
@@ -106,6 +110,33 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     ));
   }
 
+  /// Generuje klucz rodziny, szyfruje dane na serwerze i proponuje wysłanie nowego kodu.
+  Future<void> _enableEncryption() async {
+    if (!await confirm(
+        context,
+        'Włączyć szyfrowanie?',
+        'Dane na serwerze zostaną zaszyfrowane. Pozostałe osoby muszą zaktualizować Znicza i wkleić nowy kod '
+            'zaproszenia — do tego czasu ich synchronizacja pokaże komunikat o kluczu.',
+        ok: 'Włącz')) {
+      return;
+    }
+    setState(() {
+      _key = FamilyCrypto.newKey();
+      _busy = true;
+    });
+    await _cfg.save();
+    // wszystko zostanie wysłane ponownie — już zaszyfrowane
+    await AppDb.I.clearSyncState();
+    final err = await SyncService.I.syncNow();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _ok = err == null;
+      _msg = err ?? 'Szyfrowanie włączone. Wyślij rodzinie nowy kod zaproszenia.';
+    });
+    if (err == null) await _invite();
+  }
+
   Future<void> _pasteInvite() async {
     final clip = await Clipboard.getData('text/plain');
     if (!mounted) return;
@@ -132,6 +163,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       _user.text = cfg.user;
       _pass.text = cfg.password;
       _selfSigned = cfg.allowSelfSigned;
+      if (cfg.familyKey.isNotEmpty) _key = cfg.familyKey;
     });
     if (mounted && _name.text.trim().isEmpty) snack(context, 'Wpisz jeszcze swoje imię i zapisz');
   }
@@ -153,7 +185,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       appBar: AppBar(title: const Text('Synchronizacja rodzinna')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Text(
-          'Wszyscy w rodzinie widzą te same groby, zdjęcia i wizyty. Dane leżą na Twoim serwerze (NAS) albo w darmowej chmurze z WebDAV – nie u nas.',
+          'Wszyscy w rodzinie widzą te same groby, zdjęcia i wizyty. Dane leżą na Twoim serwerze (NAS) albo w darmowej chmurze z WebDAV – nie u nas. '
+          'Po włączeniu szyfrowania serwer widzi tylko zaszyfrowane pliki.',
           style: TextStyle(color: cs.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
@@ -210,6 +243,18 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text('Kod zawiera login i hasło – wysyłaj go tylko bliskim.', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Icon(_key.isEmpty ? Icons.lock_open : Icons.lock, color: _key.isEmpty ? cs.error : cs.primary),
+              title: Text(_key.isEmpty ? 'Dane na serwerze nie są szyfrowane' : 'Dane rodziny są szyfrowane'),
+              subtitle: Text(_key.isEmpty
+                  ? 'Włącz szyfrowanie — potem wyślij rodzinie nowy kod zaproszenia (zawiera klucz). '
+                      'Wszyscy muszą mieć najnowszą wersję Znicza.'
+                  : 'Klucz jest w kodzie zaproszenia — bez niego nikt nie odczyta grobów ani zdjęć na serwerze.'),
+              trailing: _key.isEmpty ? FilledButton(onPressed: _busy ? null : _enableEncryption, child: const Text('Włącz')) : null,
+            ),
           ),
           TextButton(onPressed: _disable, child: const Text('Wyłącz synchronizację')),
         ],
