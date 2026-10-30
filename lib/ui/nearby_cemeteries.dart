@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../data/db.dart';
 import '../data/models.dart';
 import '../logic/geo.dart';
+import '../services/catalog.dart';
 import '../services/location.dart';
 import '../services/osm.dart';
 import 'cemetery.dart';
@@ -47,6 +48,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
   bool _moved = false; // mapa przesunięta od ostatniego wyszukiwania
   bool _searchedOnce = false;
   bool _pendingMove = false;
+  bool _offline = false; // pokazano tylko dane wbudowane
   final _sheet = DraggableScrollableController();
 
   /// Największy obszar przeszukiwany naraz (km po przekątnej) – Overpass i tak by się zadławił.
@@ -104,25 +106,41 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
       return;
     }
     final ref = _me ?? _map.camera.center;
+    // najpierw wbudowany katalog (bez internetu), potem świeże dane z OpenStreetMap
+    await CemeteryCatalog.load();
+    final local = CemeteryCatalog.inBox(b.south, b.west, b.north, b.east, ref.latitude, ref.longitude);
     setState(() {
       _loading = true;
       _error = null;
+      _offline = false;
+      if (local.isNotEmpty) {
+        _found = local;
+        _searchedOnce = true;
+        _moved = false;
+      }
     });
     try {
-      final r = await Osm.cemeteriesInBox(b.south, b.west, b.north, b.east, ref.latitude, ref.longitude);
+      final fresh = await Osm.cemeteriesInBox(b.south, b.west, b.north, b.east, ref.latitude, ref.longitude);
+      final ids = fresh.map((c) => c.osmId).toSet();
+      final r = [...fresh, ...local.where((c) => !ids.contains(c.osmId))]..sort((a, b) => a.distance.compareTo(b.distance));
       if (!mounted) return;
       setState(() {
         _found = r;
         _moved = false;
         _searchedOnce = true;
       });
-      if (r.isNotEmpty && _sheet.isAttached && _sheet.size < 0.3) {
-        _sheet.animateTo(0.35, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-      }
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (!mounted) return;
+      if (local.isNotEmpty) {
+        setState(() => _offline = true); // są dane wbudowane – brak internetu nie jest błędem
+      } else {
+        setState(() => _error = '$e');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+    if (_found.isNotEmpty && _sheet.isAttached && _sheet.size < 0.3) {
+      _sheet.animateTo(0.35, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     }
   }
 
@@ -158,21 +176,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: _added[o.osmId]!.id!)));
       return;
     }
-    final street = [o.tags['addr:street'], o.tags['addr:housenumber']].whereType<String>().join(' ').trim();
-    final draft = Cemetery(
-      name: o.name ?? '',
-      town: o.town,
-      kind: o.kind,
-      lat: o.lat,
-      lng: o.lng,
-      osmId: o.osmId,
-      outline: o.outline,
-      address: street.isEmpty ? null : street,
-      phone: o.tags['phone'] ?? o.tags['contact:phone'],
-      hours: o.tags['opening_hours'],
-      searchUrl: o.tags['website'] ?? o.tags['contact:website'],
-    );
-    await _quickAdd(draft, fromOsm: true);
+    await _quickAdd(cemeteryDraftFrom(o), fromOsm: true);
   }
 
   /// Przytrzymanie palca na mapie → nowy cmentarz w tym miejscu (albo ten z OSM, jeśli tu jest).
@@ -332,7 +336,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
                           ? 'Ustaw mapę na okolicę i dotknij „Szukaj w tym obszarze”. Przytrzymaj palec na mapie, by dodać cmentarz w dowolnym miejscu.'
                           : _found.isEmpty
                               ? 'W tym obszarze mapa nie zna cmentarzy. Przytrzymaj palec w miejscu cmentarza, by dodać go ręcznie.'
-                              : 'Znaleziono: ${_found.length}. Dotknij cmentarza na mapie lub na liście, by go dodać. Przytrzymaj palec, by dodać inny.'),
+                              : 'Znaleziono: ${_found.length}${_offline ? ' (dane wbudowane – brak połączenia z mapą)' : ''}. Dotknij cmentarza na mapie lub na liście, by go dodać. Przytrzymaj palec, by dodać inny.'),
                   style: TextStyle(color: _error != null ? cs.error : cs.onSurfaceVariant),
                 ),
               ),
@@ -605,6 +609,122 @@ class _OsmGravesScreenState extends State<OsmGravesScreen> {
                         ]),
                       ),
                     ]),
+    );
+  }
+}
+
+/// Wbudowany katalog cmentarzy z okolicy: wyszukiwanie po nazwie i miejscowości, dodawanie jednym dotknięciem.
+class CatalogScreen extends StatefulWidget {
+  const CatalogScreen({super.key});
+  @override
+  State<CatalogScreen> createState() => _CatalogScreenState();
+}
+
+class _CatalogScreenState extends State<CatalogScreen> {
+  String _q = '';
+  List<OsmCemetery> _all = [];
+  Map<String, Cemetery> _added = {};
+  (double, double)? _ref;
+  String? _kind;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await CemeteryCatalog.load();
+    final p = await LocationService.last();
+    _ref = p != null ? (p.latitude, p.longitude) : (52.0590, 21.3890);
+    await _reload();
+  }
+
+  Future<void> _reload() async {
+    final cems = await AppDb.I.cemeteries();
+    if (!mounted) return;
+    setState(() {
+      _added = {for (final c in cems) if (c.osmId != null) c.osmId!: c};
+      _all = CemeteryCatalog.search(_q, _ref!.$1, _ref!.$2);
+    });
+  }
+
+  Future<void> _add(OsmCemetery o) async {
+    final saved = await showModalBottomSheet<Cemetery>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (c) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+        child: QuickCemeterySheet(draft: cemeteryDraftFrom(o), fromOsm: true),
+      ),
+    );
+    if (saved != null) await _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final list = _kind == null ? _all : _all.where((c) => c.kind == _kind).toList();
+    final kinds = <String>{for (final c in _all) if (c.kind != null) c.kind!}.toList()..sort();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Cmentarze w okolicy')),
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: TextField(
+            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Szukaj: miejscowość lub nazwa'),
+            onChanged: (v) {
+              _q = v.trim();
+              _reload();
+            },
+          ),
+        ),
+        SizedBox(
+          height: 48,
+          child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 12), children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ChoiceChip(label: const Text('wszystkie'), selected: _kind == null, onSelected: (_) => setState(() => _kind = null)),
+            ),
+            for (final k in kinds)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(label: Text(k), selected: _kind == k, onSelected: (_) => setState(() => _kind = k)),
+              ),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            '${list.length} cmentarzy w promieniu ${CemeteryCatalog.radiusKm.round()} km od Celestynowa · dane z OpenStreetMap (${CemeteryCatalog.generated}), działają bez internetu',
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 24),
+            itemCount: list.length,
+            itemBuilder: (_, i) {
+              final c = list[i];
+              final mine = _added[c.osmId];
+              return ListTile(
+                leading: Icon(mine != null ? Icons.check_circle : Icons.park_outlined, color: mine != null ? cs.primary : cs.tertiary),
+                title: Text(mine?.label ?? c.label),
+                subtitle: Text([
+                  if (c.town != null) c.town!,
+                  formatDistance(c.distance),
+                  if (c.areaHa >= 0.05) '${c.areaHa.toStringAsFixed(1).replaceAll('.', ',')} ha',
+                ].join(' · ')),
+                trailing: mine != null ? const Text('Dodany') : FilledButton.tonal(onPressed: () => _add(c), child: const Text('Dodaj')),
+                onTap: () => mine != null
+                    ? Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: mine.id!)))
+                    : Navigator.push(context, MaterialPageRoute(builder: (_) => NearbyCemeteriesScreen(lat: c.lat, lng: c.lng, zoom: 16))),
+              );
+            },
+          ),
+        ),
+      ]),
     );
   }
 }

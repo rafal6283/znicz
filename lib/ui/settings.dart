@@ -167,6 +167,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CemeteryEditScreen())),
         )),
         ListTile(
+          leading: const Icon(Icons.list_alt),
+          title: const Text('Katalog cmentarzy z okolicy'),
+          subtitle: const Text('Ok. 300 cmentarzy do 50 km od Celestynowa – bez internetu'),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen())),
+        ),
+        ListTile(
           leading: const Icon(Icons.travel_explore),
           title: const Text('Cmentarze w pobliżu'),
           subtitle: const Text('Z mapy OpenStreetMap – z obrysem i położeniem'),

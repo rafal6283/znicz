@@ -13,7 +13,9 @@ import '../logic/dates_pl.dart';
 import '../logic/dictation_parser.dart';
 import '../logic/geo.dart';
 import '../logic/inscription_parser.dart';
+import '../services/catalog.dart';
 import '../services/location.dart';
+import '../services/osm.dart';
 import '../services/notifications.dart';
 import '../services/ocr.dart';
 import 'cemetery.dart';
@@ -47,6 +49,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
   List<Cemetery> _cems = [];
   int? _cemId;
   String? _newCemName;
+  OsmCemetery? _catalogPick; // cmentarz z katalogu okolicy, w którego obrysie jest grób
   final List<String> _pendingPhotos = []; // ścieżki zdjęć do dodania po zapisie
 
   // szybki formularz pierwszej osoby
@@ -174,6 +177,16 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
         return;
       }
     }
+    // cmentarz z wbudowanego katalogu okolicy – zostanie dodany razem z grobem
+    await CemeteryCatalog.load();
+    final cat = CemeteryCatalog.at(_lat!, _lng!);
+    if (cat != null && mounted && _cemId == null) {
+      setState(() {
+        _catalogPick = cat;
+        _newCemName = cat.town == null || cat.label.toLowerCase().contains(cat.town!.toLowerCase()) ? cat.label : '${cat.label}, ${cat.town}';
+      });
+      return;
+    }
     for (final c in _cems) {
       final pts = <(double, double)>[
         if (c.hasLocation) (c.lat!, c.lng!),
@@ -204,6 +217,8 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
       _acc = null;
       _src = _LocSource.map;
     });
+    _cemAuto = false;
+    _autoCemetery();
   }
 
   // ---------- zdjęcie nagrobka + odczyt napisu ----------
@@ -393,6 +408,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
         _newCemName = null;
       } else if (r.cemetery != null) {
         _cemId = null;
+        _catalogPick = null;
         _newCemName = r.cemetery;
       }
     });
@@ -470,7 +486,19 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
     final db = AppDb.I;
     try {
       if (_cemId == null && _newCemName != null) {
-        _cemId = await db.saveCemetery(Cemetery(name: _newCemName!, lat: _lat, lng: _lng));
+        final pick = _catalogPick;
+        if (pick != null) {
+          final existing = (await db.cemeteries()).where((c) => c.osmId == pick.osmId).toList();
+          if (existing.isNotEmpty) {
+            _cemId = existing.first.id;
+          } else {
+            final draft = cemeteryDraftFrom(pick);
+            if (draft.name.isEmpty) draft.name = pick.label;
+            _cemId = await db.saveCemetery(draft);
+          }
+        } else {
+          _cemId = await db.saveCemetery(Cemetery(name: _newCemName!, lat: _lat, lng: _lng));
+        }
       }
       if (_cemId != null && _lat != null) {
         final c = await db.cemetery(_cemId!);
@@ -697,11 +725,14 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
               key: ValueKey('cem_$_cemId'),
               initialValue: _cems.any((c) => c.id == _cemId) ? _cemId : null,
               isExpanded: true,
-              decoration: InputDecoration(labelText: 'Cmentarz', helperText: _newCemName != null && _cemId == null ? 'Nowy: $_newCemName' : null),
+              decoration: InputDecoration(labelText: 'Cmentarz', helperText: _newCemName != null && _cemId == null ? (_catalogPick != null ? 'Z mapy okolicy (zostanie dodany): $_newCemName' : 'Nowy: $_newCemName') : null),
               items: cemItems,
               onChanged: (v) => setState(() {
                 _cemId = v;
-                if (v != null) _newCemName = null;
+                if (v != null) {
+                  _newCemName = null;
+                  _catalogPick = null;
+                }
               }),
             ),
           ),

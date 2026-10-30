@@ -22,6 +22,7 @@ class OsmCemetery {
 
   /// Rodzaj w nazewnictwie aplikacji.
   String? get kind {
+    if (tags['znicz:kind'] != null) return tags['znicz:kind'];
     final r = '${tags['religion'] ?? ''} ${tags['denomination'] ?? ''} ${tags['cemetery'] ?? ''}'.toLowerCase();
     if (r.contains('military') || r.contains('war')) return 'wojskowy';
     if (r.contains('jewish')) return 'żydowski';
@@ -32,7 +33,9 @@ class OsmCemetery {
     return null;
   }
 
-  String? get town => tags['addr:city'] ?? tags['addr:place'] ?? tags['is_in:city'];
+  String? get town => tags['addr:city'] ?? tags['addr:place'] ?? tags['is_in:city'] ?? tags['znicz:town'];
+
+  OsmCemetery copyWithDistance(double d) => OsmCemetery(osmId, tags, outline, lat, lng)..distance = d;
 
   /// Nazwa do wyświetlenia (cmentarze w OSM często nie mają nazwy).
   String get label {

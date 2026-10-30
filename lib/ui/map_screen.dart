@@ -8,7 +8,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/db.dart';
 import '../data/models.dart';
 import '../logic/geo.dart';
+import '../services/catalog.dart';
 import '../services/location.dart';
+import '../services/osm.dart';
 import 'common.dart';
 import 'grave_detail.dart';
 import 'grave_edit.dart';
@@ -123,6 +125,20 @@ class _MapScreenState extends State<MapScreen> {
   bool _loaded = false;
   GraveView? _selected;
   LatLng? _me;
+  List<OsmCemetery> _catalog = []; // wbudowane cmentarze z okolicy
+  bool _showCatalog = true;
+
+  Future<void> _addFromCatalog(OsmCemetery o) async {
+    await showModalBottomSheet<Cemetery>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (c) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+        child: QuickCemeterySheet(draft: cemeteryDraftFrom(o), fromOsm: true),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -140,10 +156,14 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _load() async {
     final g = await AppDb.I.graveViews();
     final c = await AppDb.I.cemeteries();
+    final cat = await CemeteryCatalog.load();
+    final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
       _graves = g;
       _cems = c;
+      _catalog = cat;
+      _showCatalog = prefs.getBool('map_catalog') ?? true;
       _loaded = true;
       if (_selected != null) {
         final s = g.where((x) => x.grave.id == _selected!.grave.id);
@@ -246,7 +266,26 @@ class _MapScreenState extends State<MapScreen> {
       onTap: (_, __) => setState(() => _selected = null),
       onLongPress: (_, p) => _longPress(p),
     );
+    final addedOsm = {for (final c in _cems) if (c.osmId != null) c.osmId!};
+    final catalog = _showCatalog ? _catalog.where((o) => !addedOsm.contains(o.osmId)).toList() : const <OsmCemetery>[];
     final markers = <Marker>[
+      for (final o in catalog)
+        Marker(
+          point: LatLng(o.lat, o.lng),
+          width: 28,
+          height: 28,
+          child: GestureDetector(
+            onTap: () => _addFromCatalog(o),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cs.tertiaryContainer.withValues(alpha: 0.9),
+                shape: BoxShape.circle,
+                border: Border.all(color: cs.tertiary, width: 1.5),
+              ),
+              child: Icon(Icons.add, size: 16, color: cs.onTertiaryContainer),
+            ),
+          ),
+        ),
       for (final c in _cems)
         if (c.hasLocation)
           Marker(
@@ -280,6 +319,7 @@ class _MapScreenState extends State<MapScreen> {
           options: options,
           children: [
             ...MapLayers.tiles(),
+            if (catalog.isNotEmpty) cemeteryPolygons(catalog.map((o) => o.outline), cs.outline),
             cemeteryPolygons(_cems.map((c) => c.outline), cs.tertiary),
             MarkerLayer(markers: markers),
             MapLayers.attribution(),
@@ -291,6 +331,22 @@ class _MapScreenState extends State<MapScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
+                FloatingActionButton.small(
+                  heroTag: 'm_catalog',
+                  tooltip: _showCatalog ? 'Ukryj cmentarze z okolicy' : 'Pokaż cmentarze z okolicy',
+                  onPressed: () async {
+                    final p = await SharedPreferences.getInstance();
+                    setState(() => _showCatalog = !_showCatalog);
+                    await p.setBool('map_catalog', _showCatalog);
+                    if (mounted) {
+                      snack(context, _showCatalog
+                          ? 'Cmentarze z okolicy (${_catalog.length}) – dotknij plusa, by dodać'
+                          : 'Ukryto cmentarze z okolicy');
+                    }
+                  },
+                  child: Icon(_showCatalog ? Icons.layers : Icons.layers_outlined),
+                ),
+                const SizedBox(height: 8),
                 FloatingActionButton.small(
                   heroTag: 'm_layer',
                   tooltip: MapLayers.satellite ? 'Mapa' : 'Satelita',
