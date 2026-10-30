@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:koofr_backup_ui/koofr_backup_ui.dart' show KoofrBackup;
+import 'package:koofr_backup_ui/koofr_backup_ui.dart' show KoofrBackground, KoofrBackup;
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/db.dart';
@@ -8,6 +8,13 @@ import 'services/notifications.dart';
 import 'sync/sync_service.dart';
 import 'ui/common.dart';
 import 'ui/home.dart';
+
+/// Kopia na Koofr w tle (Android) — także przy zamkniętej aplikacji.
+@pragma('vm:entry-point')
+void koofrCallback() => KoofrBackground.dispatch(() async {
+      await AppDb.I.init();
+      return ZniczBackup();
+    });
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +40,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
     // w tle – nie blokują startu
     Notifications.reschedule();
     SyncService.I.loadStatus().then((_) => SyncService.I.syncNow(quiet: true));
-    KoofrBackup.setup(ZniczBackup()).ignore();
+    KoofrBackup.setup(ZniczBackup()).then((_) => KoofrBackground.start(koofrCallback)).ignore();
   }
 
   @override
