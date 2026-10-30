@@ -113,6 +113,43 @@ def simplify(poly, tol_m=2.0, max_pts=80):
         tol *= 1.6
 
 
+def fold(s):
+    tr = str.maketrans('ąćęłńóśźżĄĆĘŁŃÓŚŹŻ', 'acelnoszzACELNOSZZ')
+    return s.translate(tr).lower()
+
+
+def nominatim_town(lat, lng):
+    """Miejscowość punktu wg granic administracyjnych (Nominatim, max 1 zapytanie/s)."""
+    url = ('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&accept-language=pl'
+           f'&lat={lat:.6f}&lon={lng:.6f}')
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Znicz/1.0 (katalog cmentarzy, jednorazowe pobranie)'})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            a = json.loads(r.read().decode('utf-8')).get('address', {})
+        for k in ('village', 'town', 'city', 'hamlet', 'suburb', 'municipality'):
+            if a.get(k):
+                return a[k]
+    except Exception as e:  # noqa: BLE001
+        print(f'Nominatim {lat},{lng}: {e}', file=sys.stderr)
+    finally:
+        time.sleep(1.1)
+    return None
+
+
+def town_from_name(name, cands):
+    """Miejscowość wymieniona w nazwie cmentarza („…w Otwocku”, „Parafia Grzebowilk”)."""
+    if not name:
+        return None
+    n = fold(name)
+    best = None
+    for pname in cands:
+        f = fold(pname)
+        stem = f[:max(4, len(f) - 2)] if len(f) > 5 else f
+        if len(stem) >= 4 and stem in n and (best is None or len(f) > len(fold(best))):
+            best = pname
+    return best
+
+
 def kind_of(tags):
     r = ' '.join(tags.get(k, '') for k in ('religion', 'denomination', 'cemetery', 'historic')).lower()
     op = tags.get('operator', '').lower()
@@ -200,6 +237,11 @@ def main():
         if d > RADIUS_KM:
             continue
         town = tags.get('addr:city') or tags.get('addr:place')
+        if not town:
+            near = [p[2] for p in places if dist_km(c['lat'], c['lng'], p[0], p[1]) < 10]
+            town = town_from_name(tags.get('name') or tags.get('official_name'), near)
+        if not town:
+            town = nominatim_town(c['lat'], c['lng'])
         if not town and places:
             # najbliższa miejscowość (przysiółki tylko gdy nic innego nie ma w pobliżu)
             best = None
