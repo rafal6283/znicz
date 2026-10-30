@@ -1,0 +1,192 @@
++ APK=/tmp/smoke.apk
++ SDK=/usr/local/lib/android/sdk
++ SM=/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
++ AM=/usr/local/lib/android/sdk/cmdline-tools/latest/bin/avdmanager
++ IMG='system-images;android-34;google_apis;x86_64'
++ yes
++ /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+yes: standard output: Broken pipe
++ /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager 'system-images;android-34;google_apis;x86_64' emulator platform-tools
++ export ANDROID_AVD_HOME=/home/runner/.android/avd
++ ANDROID_AVD_HOME=/home/runner/.android/avd
++ mkdir -p /home/runner/.android/avd/smoke.avd
++ cat
++ cat
++ ls /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64/
++ head
+NOTICE.txt
+VerifiedBootParams.textproto
+advancedFeatures.ini
+build.prop
+data
+encryptionkey.img
+kernel-ranchu
+package.xml
+ramdisk.img
+source.properties
++ export PATH=/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/emulator:/home/runner/.pub-cache/bin:/opt/hostedtoolcache/flutter/stable-3.47.9-x64/flutter/bin/cache/dart-sdk/bin:/opt/hostedtoolcache/flutter/stable-3.47.9-x64/flutter/bin:/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64/bin:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
++ PATH=/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/emulator:/home/runner/.pub-cache/bin:/opt/hostedtoolcache/flutter/stable-3.47.9-x64/flutter/bin/cache/dart-sdk/bin:/opt/hostedtoolcache/flutter/stable-3.47.9-x64/flutter/bin:/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64/bin:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
++ timeout 300 adb wait-for-device
++ nohup emulator -avd smoke -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -memory 3072
+* daemon not running; starting now at tcp:5037
+* daemon started successfully
+++ seq 1 90
++ for i in $(seq 1 90)
+++ tr -d '\r'
+++ adb shell getprop sys.boot_completed
++ '[' '' = 1 ']'
++ sleep 5
++ for i in $(seq 1 90)
+++ adb shell getprop sys.boot_completed
+++ tr -d '\r'
++ '[' '' = 1 ']'
++ sleep 5
++ for i in $(seq 1 90)
+++ adb shell getprop sys.boot_completed
+++ tr -d '\r'
++ '[' '' = 1 ']'
++ sleep 5
++ for i in $(seq 1 90)
+++ adb shell getprop sys.boot_completed
+++ tr -d '\r'
++ '[' '' = 1 ']'
++ sleep 5
++ for i in $(seq 1 90)
+++ adb shell getprop sys.boot_completed
+++ tr -d '\r'
++ '[' '' = 1 ']'
++ sleep 5
++ for i in $(seq 1 90)
+++ tr -d '\r'
+++ adb shell getprop sys.boot_completed
++ '[' 1 = 1 ']'
++ break
++ adb shell getprop sys.boot_completed
+1
++ adb shell settings put global window_animation_scale 0
++ adb shell settings put global transition_animation_scale 0
++ adb shell settings put global animator_duration_scale 0
++ adb shell input keyevent 82
++ timeout 400 bash .github/smoke.sh /tmp/smoke.apk
+Performing Streamed Install
+Success
+OK
+--- UI:
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc="Znicz"
+text=""
+content-desc="Sortowanie"
+text=""
+content-desc=""
+text=""
+content-desc="Miejsca pamięci Twoich bliskich"
+text=""
+content-desc="Zapisz grób stojąc przy nim: aplikacja zapamięta dokładne miejsce, odczyta napis z nagrobka ze zdjęcia, a dane możesz też podyktować."
+text=""
+content-desc="Dodaj pierwszy grób"
+tap Dodaj pierwszy grób
+--- UI formularza:
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc="Wstecz"
+text=""
+content-desc="Nowy grób"
+text=""
+content-desc="Podyktuj wszystko"
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc="Szybko&#10;Zrób zdjęcie nagrobka – odczytam imiona i daty. Albo podyktuj wszystko naraz."
+text=""
+content-desc="Nagrobek"
+text=""
+content-desc="Podyktuj"
+text=""
+content-desc="Zdjęcie z galerii"
+text=""
+content-desc="Osoby pochowane"
+tap Zapisz
+--- UI po zapisie:
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc="Wstecz"
+text=""
+content-desc="Ulubiony"
+text=""
+content-desc="Edytuj"
+text=""
+content-desc="Pokaż menu"
+text=""
+content-desc=""
+text=""
+content-desc="Testowy"
+text=""
+content-desc=""
+text=""
+content-desc=""
+text=""
+content-desc="Prowadź do grobu"
+text=""
+content-desc="Dojazd"
+::notice::Smoke test OK – start, dodanie grobu i karta grobu działają
++ rc=0
++ adb exec-out screencap -p
++ exit 0

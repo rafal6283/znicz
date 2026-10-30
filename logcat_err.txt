@@ -1,0 +1,41 @@
+10-30 22:08:14.754  4822  4822 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-30 22:08:14.759  4822  4822 I AndroidRuntime: Using default boot image
+10-30 22:08:14.759  4822  4822 I AndroidRuntime: Leaving lock profiling enabled
+10-30 22:08:14.849  4822  4822 D AndroidRuntime: Calling main entry com.android.commands.monkey.Monkey
+10-30 22:08:15.028  4822  4822 I AndroidRuntime: VM exiting with result code 0.
+10-30 22:08:15.111  1588  2822 W AiAiAutofill: java.lang.SecurityException: caller is not user's Augmented Autofill Service
+10-30 22:08:15.271  1409  2910 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+10-30 22:08:15.532  1409  2910 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+10-30 22:08:15.741  4846  4875 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+10-30 22:08:16.369  1696  3066 W GmsClient: android.os.DeadObjectException
+10-30 22:08:16.371  2814  3329 W GmsClient: android.os.DeadObjectException
+10-30 22:08:16.850   522   549 E PackageManager: java.util.concurrent.TimeoutException: [Optimistic Bind] Didn't bind to resolver in time!
+10-30 22:08:17.684  4846  4846 D WM-WorkerWrapper: Starting work for dev.fluttercommunity.workmanager.BackgroundWorker
+10-30 22:08:17.863  4846  5127 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+10-30 22:08:18.599  4846  4866 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=12741df5-f959-4b67-a2cb-ef63648d3619, tags={ dev.fluttercommunity.workmanager.BackgroundWorker } ]
+10-30 22:08:18.615  4846  4846 E FlutterGeolocator: There is still another flutter engine connected, not stopping location service
+10-30 22:08:18.672  1042  4094 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+10-30 22:08:18.691  1042  1069 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+10-30 22:08:19.664  1042  4094 E JavaBinder: *** Uncaught remote exception! Exceptions are not yet supported across processes. Client PID 3977 UID 10118.
+10-30 22:08:19.664  1042  4094 E JavaBinder: android.database.StaleDataException: Attempted to access a cursor after it has been closed.
+10-30 22:08:19.751   522  2331 W WifiService: Permission violation - getConfiguredNetworks not allowed for uid=10118, packageName=com.google.android.settings.intelligence, reason=java.lang.SecurityException: UID 10118 has no location permission
+10-30 22:08:20.365  4991  5324 W ConfigFileUtils: Failed to read asset ChimeraModuleSetList.pb: java.io.FileNotFoundException: ChimeraModuleSetList.pb
+10-30 22:08:20.850  5426  5426 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-30 22:08:20.868  5426  5426 I AndroidRuntime: Using default boot image
+10-30 22:08:20.868  5426  5426 I AndroidRuntime: Leaving lock profiling enabled
+10-30 22:08:20.882  4925  5268 W AsyncOperation: OperationException[Status{statusCode=Stale snapshot for com.google.android.gms.trustlet_onbody(change count changed - expected 1  but was 0), resolution=null}]
+10-30 22:08:20.907  1032  1032 E PhoneInterfaceManager: isVoNrEnabled: CommandException: com.android.internal.telephony.CommandException: REQUEST_NOT_SUPPORTED
+10-30 22:08:20.915  1032  1032 E PhoneInterfaceManager: isVoNrEnabled: CommandException: com.android.internal.telephony.CommandException: REQUEST_NOT_SUPPORTED
+10-30 22:08:21.080  1042  1069 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+10-30 22:08:21.085  5426  5426 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-30 22:08:21.522  1042  1069 E JavaBinder: *** Uncaught remote exception! Exceptions are not yet supported across processes. Client PID 3977 UID 10118.
+10-30 22:08:21.522  1042  1069 E JavaBinder: android.database.StaleDataException: Attempted to access a cursor after it has been closed.
+10-30 22:08:21.697  1759  1837 W ModernMediaScanner: Failed to visit /data/data/com.android.providers.downloads/cache/08202014-metadata.txt: java.nio.file.NoSuchFileException: /data/data/com.android.providers.downloads/cache/08202014-metadata.txt
+10-30 22:08:21.747  4925  4974 W GmsPipelineLogger: java.lang.NullPointerException
+10-30 22:08:21.799  1759  1837 W ModernMediaScanner: Failed to visit /data/data/com.android.providers.downloads/cache/08202014-pins.txt: java.nio.file.NoSuchFileException: /data/data/com.android.providers.downloads/cache/08202014-pins.txt
+10-30 22:08:22.104  1759  1837 W ModernMediaScanner: Failed to visit /data/data/com.android.providers.downloads/cache/09252026-sms-denylist-metadata.txt: java.nio.file.NoSuchFileException: /data/data/com.android.providers.downloads/cache/09252026-sms-denylist-metadata.txt
+10-30 22:08:22.111  1759  1837 W ModernMediaScanner: Failed to visit /data/data/com.android.providers.downloads/cache/09252026-sms-denylist.txt: java.nio.file.NoSuchFileException: /data/data/com.android.providers.downloads/cache/09252026-sms-denylist.txt
+10-30 22:08:22.190  5426  5426 D AndroidRuntime: Shutting down VM
+10-30 22:08:22.611  4991  5331 E ChimeraUPLUtils: Failed to invoke updateComplete: android.os.DeadObjectException
+10-30 22:08:22.864  4991  5327 E ChimeraUPLUtils: Failed to invoke updateComplete: android.os.DeadObjectException
+10-30 22:08:22.971  4991  5327 E ChimeraUPLUtils: Failed to invoke updateComplete: android.os.DeadObjectException
