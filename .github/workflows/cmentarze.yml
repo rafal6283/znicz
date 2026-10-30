@@ -1,0 +1,34 @@
+name: Katalog cmentarzy
+
+# Pobiera z OpenStreetMap cmentarze z okolicy i zapisuje je w assets/cmentarze_okolica.json.
+on:
+  workflow_dispatch:
+    inputs:
+      lat:
+        description: 'Szerokość geograficzna środka'
+        default: '52.0590'
+      lng:
+        description: 'Długość geograficzna środka'
+        default: '21.3890'
+      radius:
+        description: 'Promień w km'
+        default: '50'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pobierz cmentarze z OpenStreetMap
+        run: python3 .github/fetch_cemeteries.py "${{ inputs.lat }}" "${{ inputs.lng }}" "${{ inputs.radius }}"
+      - name: Zapisz w repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add assets/cmentarze_okolica.json
+          git diff --cached --quiet && { echo "Bez zmian"; exit 0; }
+          git commit -m "Katalog cmentarzy z OpenStreetMap (${{ inputs.radius }} km) [smoke]"
+          git push
