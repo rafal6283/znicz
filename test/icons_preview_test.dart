@@ -11,7 +11,7 @@ void main() {
   testWidgets('podgląd ikon cmentarzy', (tester) async {
     final key = GlobalKey();
     const glyphs = CemeteryGlyph.values;
-    await tester.binding.setSurfaceSize(const Size(900, 330));
+    await tester.binding.setSurfaceSize(const Size(900, 420));
     await tester.pumpWidget(Directionality(
       textDirection: TextDirection.ltr,
       child: RepaintBoundary(
