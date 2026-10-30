@@ -6,6 +6,7 @@ import 'data/db.dart';
 import 'data/koofr_backup.dart';
 import 'services/notifications.dart';
 import 'sync/sync_service.dart';
+import 'ui/cemetery_icon.dart';
 import 'ui/common.dart';
 import 'ui/home.dart';
 
@@ -34,6 +35,7 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
 
   Future<void> _start() async {
     await AppDb.I.init().timeout(const Duration(seconds: 25));
+    await CemeteryIcons.load();
     // każda zmiana danych → synchronizacja z rodziną za kilka sekund
     AppDb.I.onLocalChange = SyncService.I.schedule;
     _started = true;

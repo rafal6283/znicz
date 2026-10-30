@@ -13,6 +13,7 @@ import 'common.dart';
 import 'grave_detail.dart';
 import 'nearby_cemeteries.dart';
 import 'sync_settings.dart';
+import 'cemetery_icon.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -98,6 +99,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _load();
           },
         ),
+        const SectionTitle('Ikona cmentarzy'),
+        const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: CemeteryIconPicker()),
         const SectionTitle('Przypomnienia'),
         if (r != null) ...[
           SwitchListTile(
@@ -180,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         for (final c in _cems)
           ListTile(
-            leading: const Icon(Icons.park_outlined),
+            leading: CemeteryIcon(kind: c.kind),
             title: Text(c.label),
             subtitle: c.kind == null ? null : Text(c.kind!),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: c.id!))),

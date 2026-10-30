@@ -16,6 +16,7 @@ import 'compass_screen.dart';
 import 'grave_edit.dart';
 import 'photo_viewer.dart';
 import 'visit_edit.dart';
+import 'cemetery_icon.dart';
 
 class GraveDetailScreen extends StatefulWidget {
   final int graveId;
@@ -216,7 +217,7 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
             if (g.cemetery != null || g.grave.placeLabel.isNotEmpty || (g.grave.directions ?? '').isNotEmpty) const SectionTitle('Miejsce'),
             if (g.cemetery != null)
               ListTile(
-                leading: const Icon(Icons.park_outlined),
+                leading: CemeteryIcon(kind: g.cemetery!.kind),
                 title: Text(g.cemetery!.label),
                 subtitle: (g.cemetery!.kind ?? '').isEmpty ? null : Text(g.cemetery!.kind!),
                 trailing: const Icon(Icons.chevron_right),

@@ -16,6 +16,7 @@ import 'grave_detail.dart';
 import 'grave_edit.dart';
 import 'graves_list.dart';
 import 'nearby_cemeteries.dart';
+import 'cemetery_icon.dart';
 
 const _poland = LatLng(52.07, 19.48);
 
@@ -79,7 +80,8 @@ Marker myLocationMarker(LatLng p, {double? accuracy}) => Marker(
 class GravePin extends StatelessWidget {
   final Color color;
   final IconData icon;
-  const GravePin({super.key, required this.color, this.icon = Icons.local_fire_department});
+  final Widget? glyph; // własny symbol zamiast ikony (np. ikona cmentarza)
+  const GravePin({super.key, required this.color, this.icon = Icons.local_fire_department, this.glyph});
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, children: [
@@ -87,7 +89,7 @@ class GravePin extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2.5), boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)]),
-        child: Icon(icon, color: Colors.white, size: 18),
+        child: Center(child: glyph ?? Icon(icon, color: Colors.white, size: 18)),
       ),
       CustomPaint(size: const Size(10, 8), painter: _Tip(color)),
     ]);
@@ -210,7 +212,7 @@ class _MapScreenState extends State<MapScreen> {
           ),
           if (inside == null)
             ListTile(
-              leading: const Icon(Icons.park_outlined),
+              leading: const CemeteryIcon(),
               title: const Text('Dodaj cmentarz w tym miejscu'),
               onTap: () => Navigator.pop(c, 'cem'),
             ),
@@ -282,7 +284,7 @@ class _MapScreenState extends State<MapScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: cs.tertiary, width: 1.5),
               ),
-              child: Icon(Icons.add, size: 16, color: cs.onTertiaryContainer),
+              child: Center(child: CemeteryIcon(kind: o.kind, size: 17, color: cs.onTertiaryContainer)),
             ),
           ),
         ),
@@ -295,7 +297,7 @@ class _MapScreenState extends State<MapScreen> {
             alignment: Alignment.topCenter,
             child: GestureDetector(
               onTap: () => snack(context, c.label),
-              child: GravePin(color: cs.tertiary, icon: Icons.park_outlined),
+              child: GravePin(color: cs.tertiary, glyph: CemeteryIcon(kind: c.kind, size: 20, color: Colors.white)),
             ),
           ),
       for (final g in _graves)

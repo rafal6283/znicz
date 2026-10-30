@@ -12,6 +12,7 @@ import '../services/osm.dart';
 import 'cemetery.dart';
 import 'common.dart';
 import 'map_screen.dart';
+import 'cemetery_icon.dart';
 
 /// Obrysy cmentarzy na mapie (z OpenStreetMap).
 PolygonLayer cemeteryPolygons(Iterable<List<(double, double)>> outlines, Color color) => PolygonLayer(polygons: [
@@ -256,7 +257,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
                   width: 40,
                   height: 46,
                   alignment: Alignment.topCenter,
-                  child: GestureDetector(onTap: () => _addOsm(c), child: GravePin(color: cs.tertiary, icon: Icons.add)),
+                  child: GestureDetector(onTap: () => _addOsm(c), child: GravePin(color: cs.tertiary, glyph: CemeteryIcon(kind: c.kind, size: 20, color: Colors.white))),
                 ),
               for (final c in _mine)
                 if (c.hasLocation)
@@ -267,7 +268,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
                     alignment: Alignment.topCenter,
                     child: GestureDetector(
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: c.id!))),
-                      child: GravePin(color: cs.primary, icon: Icons.park_outlined),
+                      child: GravePin(color: cs.primary, glyph: CemeteryIcon(kind: c.kind, size: 20, color: Colors.white)),
                     ),
                   ),
               if (_me != null) myLocationMarker(_me!),
@@ -342,7 +343,7 @@ class _NearbyCemeteriesScreenState extends State<NearbyCemeteriesScreen> {
               ),
               for (final c in _found)
                 ListTile(
-                  leading: Icon(_added.containsKey(c.osmId) ? Icons.check_circle : Icons.park_outlined, color: _added.containsKey(c.osmId) ? cs.primary : cs.tertiary),
+                  leading: _added.containsKey(c.osmId) ? Icon(Icons.check_circle, color: cs.primary) : CemeteryIcon(kind: c.kind, color: cs.tertiary),
                   title: Text(_added[c.osmId]?.label ?? c.label),
                   subtitle: Text([
                     c.distance == 0 ? (_me != null ? 'jesteś na terenie' : 'środek mapy') : formatDistance(c.distance),
@@ -709,7 +710,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
               final c = list[i];
               final mine = _added[c.osmId];
               return ListTile(
-                leading: Icon(mine != null ? Icons.check_circle : Icons.park_outlined, color: mine != null ? cs.primary : cs.tertiary),
+                leading: mine != null ? Icon(Icons.check_circle, color: cs.primary) : CemeteryIcon(kind: c.kind, color: cs.tertiary),
                 title: Text(mine?.label ?? c.label),
                 subtitle: Text([
                   if (c.town != null) c.town!,
