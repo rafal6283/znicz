@@ -1,0 +1,9 @@
+Analyzing znicz...                                              
+
+   info • The 'if' statement could be replaced by a null-aware assignment. Try using the '??=' operator to conditionally assign a value • lib/logic/inscription_parser.dart:110:12 • prefer_conditional_assignment
+   info • 'translate' is deprecated and shouldn't be used. Use translateByVector3, translateByVector4, or translateByDouble instead. Try replacing the use of the deprecated member with the replacement • lib/ui/cemetery_icon.dart:289:11 • deprecated_member_use
+   info • 'translate' is deprecated and shouldn't be used. Use translateByVector3, translateByVector4, or translateByDouble instead. Try replacing the use of the deprecated member with the replacement • lib/ui/cemetery_icon.dart:291:11 • deprecated_member_use
+   info • Unnecessary cascade expression. Try using the operator '.' • lib/ui/graves_list.dart:100:7 • avoid_single_cascade_in_expression_statements
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext • lib/ui/map_screen.dart:344:29 • use_build_context_synchronously
+
+5 issues found. (ran in 13.5s)

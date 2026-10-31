@@ -1,0 +1,42 @@
+
+::group::✅ Passing tests
+✅ /home/runner/work/znicz/znicz/test/route_test.dart: przystanki: groby na jednym cmentarzu łączone
+✅ /home/runner/work/znicz/znicz/test/route_test.dart: link nawigacji
+✅ /home/runner/work/znicz/znicz/test/route_test.dart: zdjęcia według lat
+✅ /home/runner/work/znicz/znicz/test/route_test.dart: pole visitor w mapie grobu
+✅ /home/runner/work/znicz/znicz/test/icons_preview_test.dart: podgląd ikon cmentarzy
+✅ /home/runner/work/znicz/znicz/test/catalog_test.dart: wbudowany katalog cmentarzy okolicy
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: punkt w wielokącie
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: obrys w bazie w obie strony
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: cmentarze z Overpass
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: groby z relacjami osób
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: upraszczanie obrysu
+✅ /home/runner/work/znicz/znicz/test/osm_test.dart: miejscowość z Nominatim
+✅ /home/runner/work/znicz/znicz/test/family_crypto_test.dart: szyfrowanie plików rodziny
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: PartialDate parsuje formy polskie i ISO
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: PartialDate zapis i format
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: PartialDate wiek
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Daty w tekście różne zapisy
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Daty w tekście liczebniki z dyktowania
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Napis z nagrobka jedna osoba, daty pod imieniem
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Napis z nagrobka dwie osoby z latami w jednej linii
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Napis z nagrobka imię i nazwisko w osobnych liniach, nazwisko rodowe
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Napis z nagrobka nazwisko rodziny w liczbie mnogiej
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Napis z nagrobka żył lat
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Dyktowanie pełny opis grobu
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Dyktowanie dwie osoby, nazwisko rodowe, cmentarz
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Dyktowanie kwatera z literą i liczebnik porządkowy
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Geo odległość i kierunek
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Geo uśrednianie odrzuca słabe odczyty
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Geo trasa
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Geo format odległości
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Rocznice najbliższe wystąpienie
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja odcisk zmienia się przy zmianie rekordu
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja nowsza wersja wygrywa, przy remisie usunięcie
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja pakiet grobu w obie strony
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja kod zaproszenia
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja odpowiedź PROPFIND (Synology)
+✅ /home/runner/work/znicz/znicz/test/logic_test.dart: Synchronizacja adres serwera
+::endgroup::
+
+🎉 37 tests passed.
