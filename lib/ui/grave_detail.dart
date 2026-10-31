@@ -14,6 +14,7 @@ import 'cemetery.dart';
 import 'common.dart';
 import 'compass_screen.dart';
 import 'grave_edit.dart';
+import 'grave_years.dart';
 import 'photo_viewer.dart';
 import 'visit_edit.dart';
 import 'cemetery_icon.dart';
@@ -233,6 +234,12 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
             SectionTitle(
               'Zdjęcia (${_photos.length})',
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (_photos.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Stan grobu rok po roku',
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GraveYearsScreen(title: g.title, photos: _photos))),
+                    icon: const Icon(Icons.compare_outlined),
+                  ),
                 IconButton(tooltip: 'Zrób zdjęcie', onPressed: () => _addPhoto(ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined)),
                 IconButton(tooltip: 'Z galerii', onPressed: () => _addPhoto(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined)),
               ]),

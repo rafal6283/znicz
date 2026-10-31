@@ -42,7 +42,7 @@ class AppDb extends ChangeNotifier {
   Future<void> _open() async {
     _db = await openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onConfigure: (d) async => d.execute('PRAGMA foreign_keys = ON'),
       onUpgrade: (d, from, to) async {
         if (from < 2) {
@@ -50,6 +50,7 @@ class AppDb extends ChangeNotifier {
           await d.execute('ALTER TABLE cemeteries ADD COLUMN outline TEXT');
           await d.execute('ALTER TABLE graves ADD COLUMN osm_id TEXT');
         }
+        if (from < 3) await d.execute('ALTER TABLE graves ADD COLUMN visitor TEXT');
       },
       onCreate: (d, v) async {
         const sync = 'uid TEXT NOT NULL UNIQUE, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0';
@@ -59,7 +60,7 @@ class AppDb extends ChangeNotifier {
         await d.execute('''CREATE TABLE graves(
           id INTEGER PRIMARY KEY AUTOINCREMENT, cemetery_id INTEGER REFERENCES cemeteries(id) ON DELETE SET NULL,
           lat REAL, lng REAL, accuracy REAL, section TEXT, row_no TEXT, number TEXT, type TEXT, directions TEXT,
-          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, osm_id TEXT, $sync)''');
+          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, osm_id TEXT, visitor TEXT, $sync)''');
         await d.execute('''CREATE TABLE people(
           id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
           first_name TEXT, last_name TEXT, maiden_name TEXT, birth TEXT, death TEXT, burial TEXT, relation TEXT,
@@ -263,6 +264,24 @@ class AppDb extends ChangeNotifier {
           where: 'date>=? AND date<? AND $_live', whereArgs: [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch], orderBy: 'date DESC'))
       .map(Visit.fromMap)
       .toList();
+
+  /// Imiona z rodziny: podpisy wizyt i przydziały grobów.
+  Future<Set<String>> familyNames() async {
+    final out = <String>{};
+    for (final r in await db.rawQuery('SELECT DISTINCT by_name AS n FROM visits WHERE $_live AND by_name IS NOT NULL '
+        'UNION SELECT DISTINCT visitor AS n FROM graves WHERE $_live AND visitor IS NOT NULL')) {
+      final n = (r['n'] as String?)?.trim() ?? '';
+      if (n.isNotEmpty) out.add(n);
+    }
+    return out;
+  }
+
+  /// Groby, które mają zdjęcie zrobione od [since].
+  Future<Set<int>> gravesWithPhotoSince(DateTime since) async => {
+        for (final r in await db.query('photos',
+            columns: ['grave_id'], where: 'taken>=? AND $_live', whereArgs: [since.millisecondsSinceEpoch]))
+          r['grave_id'] as int
+      };
 
   Future<int> saveVisit(Visit v) async {
     v.updated = nowMs();

@@ -223,6 +223,7 @@ class Grave {
   String? notes;
   PartialDate? feePaidUntil; // opłata za miejsce
   bool allSaints; // na liście do odwiedzenia 1 listopada
+  String? visitor; // kto z rodziny odwiedza ten grób (podział na Wszystkich Świętych)
   bool favorite;
   int created;
   String? osmId; // grób zaimportowany z OpenStreetMap
@@ -244,6 +245,7 @@ class Grave {
     this.notes,
     this.feePaidUntil,
     this.allSaints = true,
+    this.visitor,
     this.favorite = false,
     int? created,
     this.osmId,
@@ -279,6 +281,7 @@ class Grave {
         'notes': notes,
         'fee_until': feePaidUntil?.toStorage(),
         'all_saints': allSaints ? 1 : 0,
+        'visitor': visitor,
         'favorite': favorite ? 1 : 0,
         'created': created,
         'osm_id': osmId,
@@ -301,6 +304,7 @@ class Grave {
         notes: m['notes'] as String?,
         feePaidUntil: PartialDate.parse(m['fee_until'] as String?),
         allSaints: (m['all_saints'] as int? ?? 1) == 1,
+        visitor: m['visitor'] as String?,
         favorite: (m['favorite'] as int? ?? 0) == 1,
         created: m['created'] as int?,
         osmId: m['osm_id'] as String?,

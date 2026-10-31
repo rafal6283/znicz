@@ -8,6 +8,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../data/db.dart';
+import '../sync/sync_service.dart';
 
 /// Ustawienia przypomnień (zapisywane w SharedPreferences).
 class ReminderSettings {
@@ -128,8 +129,15 @@ class Notifications {
         final now = tz.TZDateTime.now(tz.local);
         var when = tz.TZDateTime(tz.local, now.year, d.month, d.day, s.hour);
         if (when.isBefore(now)) when = tz.TZDateTime(tz.local, now.year + 1, d.month, d.day, s.hour);
-        final n = graves.values.where((g) => g.grave.allSaints).length;
-        await _plugin.zonedSchedule(id++, 'Wszystkich Świętych za ${s.allSaintsDaysBefore} dni', 'Groby do odwiedzenia: $n. Otwórz listę i zaplanuj trasę.', when, _details,
+        final list = graves.values.where((g) => g.grave.allSaints).toList();
+        final me = (await SyncConfig.load()).myName.trim().toLowerCase();
+        final mine = me.isEmpty ? 0 : list.where((g) => (g.grave.visitor ?? '').trim().toLowerCase() == me).length;
+        final free = list.where((g) => (g.grave.visitor ?? '').trim().isEmpty).length;
+        final body = StringBuffer('Groby do odwiedzenia: ${list.length}');
+        if (mine > 0) body.write(', Twoje: $mine');
+        if (free > 0 && free < list.length) body.write(', bez przydziału: $free');
+        body.write('. Otwórz listę, podziel groby w rodzinie i zaplanuj trasę.');
+        await _plugin.zonedSchedule(id++, 'Wszystkich Świętych za ${s.allSaintsDaysBefore} dni', body.toString(), when, _details,
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, matchDateTimeComponents: DateTimeComponents.dateAndTime);
         count++;
       }

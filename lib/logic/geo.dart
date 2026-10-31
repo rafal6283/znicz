@@ -136,3 +136,42 @@ double distanceToArea(double lat, double lng, List<(double, double)> poly, doubl
 }
 
 double cosDeg(double d) => cos(_rad(d));
+
+/// Przystanki trasy samochodowej: kolejne punkty na tym samym cmentarzu ([keys] równe) łączone w jeden.
+List<(double, double)> routeStops(List<(double, double)> points, List<Object?> keys) {
+  final out = <(double, double)>[];
+  Object? last;
+  for (var i = 0; i < points.length; i++) {
+    final k = keys[i];
+    if (i > 0 && k != null && k == last) continue;
+    out.add(points[i]);
+    last = k;
+  }
+  return out;
+}
+
+/// Długość trasy w linii prostej (m).
+double routeLength(List<(double, double)> stops, {(double, double)? start}) {
+  var sum = 0.0;
+  var prev = start;
+  for (final s in stops) {
+    if (prev != null) sum += distanceM(prev.$1, prev.$2, s.$1, s.$2);
+    prev = s;
+  }
+  return sum;
+}
+
+/// Link do nawigacji Google Maps przez kolejne przystanki (do 9 punktów pośrednich).
+Uri? directionsUrl(List<(double, double)> stops, {(double, double)? origin}) {
+  if (stops.isEmpty) return null;
+  String f((double, double) p) => '${p.$1.toStringAsFixed(6)},${p.$2.toStringAsFixed(6)}';
+  final s = stops.length > 10 ? stops.sublist(0, 10) : stops;
+  final mid = s.sublist(0, s.length - 1);
+  return Uri.https('www.google.com', '/maps/dir/', {
+    'api': '1',
+    if (origin != null) 'origin': f(origin),
+    'destination': f(s.last),
+    if (mid.isNotEmpty) 'waypoints': mid.map(f).join('|'),
+    'travelmode': 'driving',
+  });
+}
