@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:rodzina_wykresy/rodzina_wykresy.dart' show staggered, CalendarHeatmap, InteractiveBarChart, BarItem;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/db.dart';
@@ -26,6 +27,7 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
   List<UpcomingEvent> _events = [];
   Map<int, GraveView> _graves = {};
   int _asTotal = 0, _asDone = 0;
+  List<Visit> _visits = [];
 
   @override
   void initState() {
@@ -48,8 +50,10 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
     final (from, to) = allSaintsWindow(now);
     final visited = (await AppDb.I.visitsBetween(from, to)).map((v) => v.graveId).toSet();
     final list = views.where((v) => v.grave.allSaints).toList();
+    final year = await AppDb.I.visitsBetween(now.subtract(const Duration(days: 366)), now.add(const Duration(days: 1)));
     if (!mounted) return;
     setState(() {
+      _visits = year;
       _graves = {for (final v in views) v.grave.id!: v};
       _events = ev.where((e) => _graves.containsKey(e.graveId)).toList();
       _asTotal = list.length;
@@ -73,7 +77,7 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
           await SyncService.I.syncNow(quiet: true);
           await _load();
         },
-        child: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
+        child: ListView(padding: const EdgeInsets.only(bottom: 32), children: staggered([
           Card(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             color: cs.primaryContainer,
@@ -94,7 +98,12 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
                       ),
                       if (_asTotal > 0) ...[
                         const SizedBox(height: 8),
-                        LinearProgressIndicator(value: _asTotal == 0 ? 0 : _asDone / _asTotal, borderRadius: BorderRadius.circular(4)),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: _asTotal == 0 ? 0 : _asDone / _asTotal),
+                          duration: const Duration(milliseconds: 900),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, v, __) => LinearProgressIndicator(value: v, borderRadius: BorderRadius.circular(4)),
+                        ),
                         const SizedBox(height: 4),
                         Text('Odwiedzone: $_asDone z $_asTotal grobów', style: TextStyle(color: cs.onPrimaryContainer, fontSize: 13)),
                       ],
@@ -116,7 +125,45 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
               child: Text('Rocznice pojawią się tu, gdy osoby będą miały pełne daty urodzenia lub śmierci.', style: TextStyle(color: cs.onSurfaceVariant)),
             ),
           for (final e in soon) _EventTile(e, _graves[e.graveId]!),
-        ]),
+          if (_visits.isNotEmpty) ...[
+            const SectionTitle('Wizyty w ostatnim roku'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: CalendarHeatmap(
+                values: {
+                  for (final v in _visits)
+                    DateTime(v.dateTime.year, v.dateTime.month, v.dateTime.day):
+                        _visits.where((x) => x.dateTime.year == v.dateTime.year && x.dateTime.month == v.dateTime.month && x.dateTime.day == v.dateTime.day).length.toDouble()
+                },
+                color: cs.primary,
+                weeks: 26,
+                format: (v) => '${v.round()} ${v.round() == 1 ? 'wizyta' : 'wizyt'}',
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: InteractiveBarChart(
+                horizontal: true,
+                format: (v) => '${v.round()}',
+                color: cs.tertiary,
+                bars: () {
+                  final by = <String, int>{};
+                  for (final v in _visits) {
+                    final k = (v.by ?? '').trim().isEmpty ? 'bez podpisu' : v.by!.trim();
+                    by[k] = (by[k] ?? 0) + 1;
+                  }
+                  final l = by.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+                  return [for (final e in l.take(6)) BarItem(e.key, e.value.toDouble())];
+                }(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Text('Kto z rodziny ile razy odwiedzał groby (${_visits.length} wizyt w roku).',
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+            ),
+          ],
+        ])),
       ),
     );
   }
