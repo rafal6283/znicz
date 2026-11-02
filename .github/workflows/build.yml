@@ -83,6 +83,16 @@ jobs:
         run: |
           set -o pipefail
           flutter test 2>&1 | tee test.log
+      - name: Zrzuty ekranów
+        continue-on-error: true
+        run: SCREENSHOTS=build/zrzuty flutter test test/screenshots_test.dart
+      - name: Zrzuty ekranów (artefakt)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zrzuty-ekranow
+          path: build/zrzuty
+          if-no-files-found: ignore
       - name: Build APK
         run: |
           set -o pipefail
