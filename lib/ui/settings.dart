@@ -14,6 +14,7 @@ import 'grave_detail.dart';
 import 'nearby_cemeteries.dart';
 import 'sync_settings.dart';
 import 'cemetery_icon.dart';
+import 'doba_visits.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -98,6 +99,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             await Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncSettingsScreen()));
             _load();
           },
+        ),
+        ListTile(
+          leading: const Icon(Icons.route_outlined),
+          title: const Text('Wizyty z Doby'),
+          subtitle: const Text('Doba zapisuje, kiedy byłeś na cmentarzu — Znicz podpowie wizyty przy grobach'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DobaVisitsScreen())),
         ),
         const SectionTitle('Ikona cmentarzy'),
         const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: CemeteryIconPicker()),

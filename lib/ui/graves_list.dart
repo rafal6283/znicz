@@ -7,6 +7,7 @@ import '../logic/dates_pl.dart';
 import '../logic/geo.dart';
 import '../services/location.dart';
 import 'common.dart';
+import 'doba_visits.dart';
 import 'grave_detail.dart';
 import 'grave_edit.dart';
 
@@ -174,6 +175,7 @@ class _GravesListScreenState extends State<GravesListScreen> {
                   action: FilledButton.icon(onPressed: () => openNewGrave(context), icon: const Icon(Icons.add), label: const Text('Dodaj pierwszy grób')),
                 )
               : Column(children: [
+                  const DobaBanner(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                     child: SearchBar(

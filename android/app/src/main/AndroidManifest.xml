@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"/>
+    <!-- Wizyty z aplikacji Doba (pobyty na cmentarzach), za zgodą użytkownika -->
+    <uses-permission android:name="pl.rafal.lifecycle.permission.READ_STAYS"/>
 
     <application
         android:usesCleartextTraffic="true"
@@ -55,6 +57,7 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <package android:name="pl.rafal.lifecycle"/>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
