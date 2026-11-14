@@ -23,7 +23,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "znicz/doba").setMethodCallHandler { call, result ->
             when (call.method) {
-                "status" -> result.success(mapOf("installed" to installed(), "granted" to installed() && granted()))
+                "status" -> result.success(mapOf("installed" to installed(), "granted" to (installed() && granted())))
                 "request" -> {
                     if (!installed()) { result.success(false); return@setMethodCallHandler }
                     if (granted()) { result.success(true); return@setMethodCallHandler }
