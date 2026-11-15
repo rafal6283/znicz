@@ -1,0 +1,60 @@
+11-15 06:11:00.085  4673  4673 E flutter : #25     _PendingEvents.schedule.<anonymous closure> (dart:async/stream_impl.dart:649)
+11-15 06:11:00.085  4673  4673 E flutter : #26     _microtaskLoop (dart:async/schedule_microtask.dart:40)
+11-15 06:11:00.085  4673  4673 E flutter : #27     _startMicrotaskLoop (dart:async/schedule_microtask.dart:49)
+11-15 06:11:00.085  4673  4673 E flutter : 
+11-15 06:11:00.198   522  2975 W WifiService: Permission violation - getConfiguredNetworks not allowed for uid=10118, packageName=com.google.android.settings.intelligence, reason=java.lang.SecurityException: UID 10118 has no location permission
+11-15 06:11:00.313  4673  4673 D WM-WorkerWrapper: Starting work for dev.fluttercommunity.workmanager.BackgroundWorker
+11-15 06:11:00.450  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.credentials.CredentialManagerPreferenceController
+11-15 06:11:00.450  1039  1383 W SliceDataConverter: Caused by: java.lang.reflect.InvocationTargetException
+11-15 06:11:00.450  1039  1383 W SliceDataConverter: Caused by: java.lang.RuntimeException: Can't create handler inside thread Thread[binder:1039_5,5,main] that has not called Looper.prepare()
+11-15 06:11:00.471  4673  4783 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(105)] Using the Impeller rendering backend (OpenGLES).
+11-15 06:11:00.487  1039  1383 E SystemServiceRegistry: android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+11-15 06:11:00.491  4673  4706 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=f462e08e-d8b9-40a1-a660-a2e49e21368f, tags={ dev.fluttercommunity.workmanager.BackgroundWorker } ]
+11-15 06:11:00.518  4673  4673 E FlutterGeolocator: There is still another flutter engine connected, not stopping location service
+11-15 06:11:00.609  1039  1383 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+11-15 06:11:00.616  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.telephony.CallsDefaultSubscriptionController
+11-15 06:11:00.616  1039  1383 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.telephony.CallsDefaultSubscriptionController.<init> [class android.content.Context, class java.lang.String]
+11-15 06:11:00.634  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.634  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.634  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.654  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.fuelgauge.batteryusage.BatteryChartPreferenceController
+11-15 06:11:00.654  1039  1383 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.fuelgauge.batteryusage.BatteryChartPreferenceController.<init> [class android.content.Context, class java.lang.String]
+11-15 06:11:00.666  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.666  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.666  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.applications.appinfo.ManageAppLocalePreferenceController
+11-15 06:11:00.667  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.NetworkProviderSimsCategoryController
+11-15 06:11:00.667  1039  1383 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.NetworkProviderSimsCategoryController.<init> [class android.content.Context, class java.lang.String]
+11-15 06:11:00.677  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.accessibility.VibrationMainSwitchPreferenceController
+11-15 06:11:00.677  1039  1383 W SliceDataConverter: Caused by: java.lang.reflect.InvocationTargetException
+11-15 06:11:00.677  1039  1383 W SliceDataConverter: Caused by: java.lang.RuntimeException: Can't create handler inside thread Thread[binder:1039_5,5,main] that has not called Looper.prepare()
+11-15 06:11:00.678  1039  1063 E HardwareInfoFeatureProviderImpl: java.lang.NumberFormatException: For input string: "E"
+11-15 06:11:00.719  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-15 06:11:00.719  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-15 06:11:00.719  1039  1383 W SliceDataConverter: Caused by: java.lang.ClassNotFoundException: com.android.settings.development.DevelopmentMemtagFooterPreferenceController
+11-15 06:11:00.719  1039  1383 W SliceDataConverter: java.lang.IllegalStateException: Invalid preference controller: com.android.settings.network.telephony.CallsDefaultSubscriptionController
+11-15 06:11:00.719  1039  1383 W SliceDataConverter: Caused by: java.lang.NoSuchMethodException: com.android.settings.network.telephony.CallsDefaultSubscriptionController.<init> [class android.content.Context, class java.lang.String]
+11-15 06:11:00.978  1039  1383 E JavaBinder: *** Uncaught remote exception! Exceptions are not yet supported across processes. Client PID 4078 UID 10118.
+11-15 06:11:00.978  1039  1383 E JavaBinder: android.database.StaleDataException: Attempted to access a cursor after it has been closed.
+11-15 06:11:01.130  1855  2305 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:03.578   522   942 E AppOps  : java.lang.SecurityException: Specified package "android" under uid 10187 but it is not
+11-15 06:11:03.585   522   942 E AppOps  : java.lang.SecurityException: Specified package "android" under uid 10187 but it is not
+11-15 06:11:03.585   522   942 E AppOps  : java.lang.SecurityException: Specified package "android" under uid 10187 but it is not
+11-15 06:11:03.586   522   942 E AppOps  : java.lang.SecurityException: Specified package "android" under uid 10187 but it is not
+11-15 06:11:03.595  1613  1967 E AmbientMusicServiceMana: oxe: java.lang.reflect.InvocationTargetException
+11-15 06:11:03.595  1613  1967 E AmbientMusicServiceMana: Caused by: java.lang.reflect.InvocationTargetException
+11-15 06:11:03.595  1613  1967 E AmbientMusicServiceMana: Caused by: java.lang.IllegalStateException: No underlying SoundTriggerModule available
+11-15 06:11:03.662  1855  2316 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:04.481  1855  2316 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:04.955  1855  2260 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:05.254  1855  2260 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:05.735  1855  2260 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:06.230  4837  4837 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-15 06:11:06.234  4837  4837 I AndroidRuntime: Using default boot image
+11-15 06:11:06.234  4837  4837 I AndroidRuntime: Leaving lock profiling enabled
+11-15 06:11:06.330  4837  4837 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+11-15 06:11:07.076  1398  1466 W AsyncOperation: OperationException[Status{statusCode=Stale snapshot for com.google.android.libraries.consentverifier#com.google.android.contacts(change count changed - expected 3  but was 2), resolution=null}]
+11-15 06:11:07.246  1855  2305 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:07.603  1855  2305 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:07.606  4837  4837 D AndroidRuntime: Shutting down VM
+11-15 06:11:08.267  1855  2316 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+11-15 06:11:08.605  1855  2316 W CorpusConfigHelper: android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
