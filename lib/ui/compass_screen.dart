@@ -100,8 +100,34 @@ class _CompassScreenState extends State<CompassScreen> {
     final cs = Theme.of(context).colorScheme;
     final g = widget.grave;
     final d = _distance;
-    final b = _bearing;
     final arrived = d != null && d <= _arriveRadius;
+    // nagrana droga od bramy: prowadź wzdłuż niej zamiast na skróty między grobami
+    final route = g.grave.route;
+    var tLat = _tLat, tLng = _tLng;
+    double? shown = d;
+    String? routeNote;
+    if (route.length >= 2 && _pos != null && !arrived) {
+      final lat = _pos!.latitude, lng = _pos!.longitude;
+      final nearest = route.map((p) => distanceM(lat, lng, p.$1, p.$2)).reduce(min);
+      if (nearest <= 60) {
+        final t = routeTarget(route, lat, lng);
+        if (!t.$4) {
+          tLat = t.$1;
+          tLng = t.$2;
+        }
+        shown = t.$3;
+        routeNote = 'Prowadzę nagraną drogą od bramy';
+      } else {
+        final dStart = distanceM(lat, lng, route.first.$1, route.first.$2);
+        if (dStart < 1500 && dStart < d! + 30) {
+          tLat = route.first.$1;
+          tLng = route.first.$2;
+          shown = dStart + routeLength(route);
+          routeNote = 'Najpierw idź do początku nagranej drogi (${formatDistance(dStart)})';
+        }
+      }
+    }
+    final b = _pos == null ? null : bearingDeg(_pos!.latitude, _pos!.longitude, tLat, tLng);
     final heading = _heading ?? (_pos != null && _pos!.speed > 0.7 ? _pos!.heading : null);
     final rel = (b != null && heading != null) ? angleDiff(b, heading) : null;
 
@@ -136,7 +162,8 @@ class _CompassScreenState extends State<CompassScreen> {
           ]),
         ),
         const SizedBox(height: 12),
-        Text(formatDistance(d!), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(formatDistance(shown!), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+        if (routeNote != null) Text(routeNote, style: TextStyle(color: cs.primary, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
         Text(
           rel == null
@@ -214,7 +241,9 @@ class _CompassScreenState extends State<CompassScreen> {
                 if (g.cemetery != null) cemeteryPolygons([g.cemetery!.outline], cs.tertiary),
                 if (me != null)
                   PolylineLayer(polylines: [
-                    Polyline(points: [me, LatLng(_tLat, _tLng)], strokeWidth: 3, color: cs.primary.withValues(alpha: 0.7), pattern: StrokePattern.dashed(segments: const [8, 6])),
+                    if (route.length >= 2)
+                      Polyline(points: [for (final p in route) LatLng(p.$1, p.$2)], strokeWidth: 6, color: cs.tertiary.withValues(alpha: 0.85)),
+                    Polyline(points: [me, LatLng(tLat, tLng)], strokeWidth: 3, color: cs.primary.withValues(alpha: 0.7), pattern: StrokePattern.dashed(segments: const [8, 6])),
                   ]),
                 if (me != null && _pos != null)
                   CircleLayer(circles: [

@@ -175,3 +175,43 @@ Uri? directionsUrl(List<(double, double)> stops, {(double, double)? origin}) {
     'travelmode': 'driving',
   });
 }
+
+/// Punkt, do którego prowadzić wzdłuż nagranej trasy: najbliższy punkt trasy + [lookAheadM] dalej.
+/// Zwraca (szer., dł., pozostało metrów wzdłuż trasy, czy to już koniec trasy).
+(double, double, double, bool) routeTarget(List<(double, double)> r, double lat, double lng, {double lookAheadM = 20}) {
+  if (r.isEmpty) return (lat, lng, 0, true);
+  var best = 0;
+  var bestD = double.infinity;
+  for (var i = 0; i < r.length; i++) {
+    final d = distanceM(lat, lng, r[i].$1, r[i].$2);
+    // przy remisie wybieraj dalszy punkt – ścieżki bywają wąskie i blisko siebie
+    if (d < bestD - 1 || (d <= bestD + 1 && i > best)) {
+      bestD = min(d, bestD);
+      best = i;
+    }
+  }
+  // pozostała długość od najbliższego punktu do końca
+  var remain = 0.0;
+  for (var i = best + 1; i < r.length; i++) {
+    remain += distanceM(r[i - 1].$1, r[i - 1].$2, r[i].$1, r[i].$2);
+  }
+  remain += bestD;
+  var acc = 0.0;
+  var t = best;
+  while (t < r.length - 1 && acc < lookAheadM) {
+    acc += distanceM(r[t].$1, r[t].$2, r[t + 1].$1, r[t + 1].$2);
+    t++;
+  }
+  return (r[t].$1, r[t].$2, remain, t >= r.length - 1);
+}
+
+/// Upraszcza nagranie GPS: odrzuca punkty bliżej niż [minStepM] od poprzedniego.
+List<(double, double)> thinRoute(List<(double, double)> r, {double minStepM = 3}) {
+  if (r.length < 3) return r;
+  final out = <(double, double)>[r.first];
+  for (var i = 1; i < r.length - 1; i++) {
+    if (distanceM(out.last.$1, out.last.$2, r[i].$1, r[i].$2) >= minStepM) out.add(r[i]);
+  }
+  out.add(r.last);
+  return out;
+}

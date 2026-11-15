@@ -9,6 +9,10 @@ import '../data/storage.dart';
 import '../services/notifications.dart';
 import '../sync/sync_service.dart';
 import 'cemetery.dart';
+import 'expenses.dart';
+import 'family_tree.dart';
+import 'settings_extras.dart';
+import 'shopping.dart';
 import 'common.dart';
 import 'grave_detail.dart';
 import 'nearby_cemeteries.dart';
@@ -196,7 +200,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: c.kind == null ? null : Text(c.kind!),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CemeteryScreen(cemeteryId: c.id!))),
           ),
+        const SectionTitle('Rodzina i pamięć'),
+        ListTile(
+          leading: const Icon(Icons.payments_outlined),
+          title: const Text('Wydatki na groby'),
+          subtitle: const Text('Wszystkie groby, z rozliczeniem kto ile dołożył'),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen())),
+        ),
+        ListTile(
+          leading: const Icon(Icons.shopping_basket_outlined),
+          title: const Text('Zakupy na Wszystkich Świętych'),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShoppingScreen())),
+        ),
+        ListTile(
+          leading: const Icon(Icons.event_available_outlined),
+          title: const Text('Rocznice do kalendarza'),
+          subtitle: const Text('Plik dla Kalendarza Google / Apple – rocznice co roku'),
+          onTap: () => exportIcs(context),
+        ),
+        ListTile(
+          leading: const Icon(Icons.account_tree_outlined),
+          title: const Text('Drzewo rodzinne – eksport GEDCOM'),
+          subtitle: const Text('Do MyHeritage, Ancestry, Gramps'),
+          onTap: () => exportGedcom(context),
+        ),
         const SectionTitle('Dane'),
+        const OfflineAllTile(),
         FutureBuilder<KoofrConfig?>(
           future: koofrFromFamilySync(),
           builder: (c, snap) => KoofrBackupTile(suggestedConfig: snap.data),

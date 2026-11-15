@@ -376,6 +376,7 @@ class SyncService extends ChangeNotifier {
     if (e == '.png') return 'image/png';
     if (e == '.heic') return 'image/heic';
     if (e == '.webp') return 'image/webp';
+    if (e == '.m4a' || e == '.aac') return 'audio/mp4';
     return 'image/jpeg';
   }
 
@@ -414,7 +415,7 @@ class SyncService extends ChangeNotifier {
       ph['file'] = _photoFileName(GravePhoto(graveId: 0, path: ph['path'] as String, uid: ph['uid'] as String));
       ph.remove('path');
     }
-    return GraveBundle(g, await kids('people'), photos, await kids('visits'));
+    return GraveBundle(g, await kids('people'), photos, await kids('visits'), await kids('expenses'));
   }
 
   /// Scala rekord z serwera z lokalnym. Zwraca true, gdy coś zmieniono.
@@ -453,6 +454,9 @@ class SyncService extends ChangeNotifier {
     }
     for (final m in b.visits) {
       if (await _mergeRecord('visits', m, fixed: {'grave_id': gid})) changes++;
+    }
+    for (final m in b.expenses) {
+      if (await _mergeRecord('expenses', m, fixed: {'grave_id': gid})) changes++;
     }
     for (final m in b.photos) {
       final file = m['file'] as String? ?? '${m['uid']}.jpg';

@@ -16,6 +16,8 @@ import '../sync/sync_service.dart';
 import 'common.dart';
 import 'grave_detail.dart';
 import 'graves_list.dart';
+import 'shopping.dart';
+import 'settings_extras.dart';
 
 class AnniversariesScreen extends StatefulWidget {
   const AnniversariesScreen({super.key});
@@ -71,7 +73,9 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
     final soon = _events.where((e) => e.daysFrom(now) > 0).take(40).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pamięć')),
+      appBar: AppBar(title: const Text('Pamięć'), actions: [
+        IconButton(tooltip: 'Dodaj rocznice do kalendarza', onPressed: () => exportIcs(context), icon: const Icon(Icons.event_available_outlined)),
+      ]),
       body: RefreshIndicator(
         onRefresh: () async {
           await SyncService.I.syncNow(quiet: true);
@@ -420,6 +424,11 @@ class _AllSaintsScreenState extends State<AllSaintsScreen> {
     final km = _route && stops.isNotEmpty ? routeLength(stops, start: _start) / 1000 : null;
     return Scaffold(
       appBar: AppBar(title: const Text('Wszystkich Świętych'), actions: [
+        IconButton(
+          tooltip: 'Lista zakupów',
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShoppingScreen())),
+          icon: const Icon(Icons.shopping_basket_outlined),
+        ),
         if (_list.isNotEmpty) IconButton(tooltip: 'Udostępnij podział', onPressed: _sharePlan, icon: const Icon(Icons.share_outlined)),
       ]),
       floatingActionButton: todo.isEmpty

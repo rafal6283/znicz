@@ -42,7 +42,7 @@ class AppDb extends ChangeNotifier {
   Future<void> _open() async {
     _db = await openDatabase(
       dbPath,
-      version: 3,
+      version: 4,
       onConfigure: (d) async => d.execute('PRAGMA foreign_keys = ON'),
       onUpgrade: (d, from, to) async {
         if (from < 2) {
@@ -51,6 +51,22 @@ class AppDb extends ChangeNotifier {
           await d.execute('ALTER TABLE graves ADD COLUMN osm_id TEXT');
         }
         if (from < 3) await d.execute('ALTER TABLE graves ADD COLUMN visitor TEXT');
+        if (from < 4) {
+          for (final sql in [
+            'ALTER TABLE graves ADD COLUMN route TEXT',
+            'ALTER TABLE graves ADD COLUMN candles INTEGER DEFAULT 2',
+            'ALTER TABLE graves ADD COLUMN flowers INTEGER DEFAULT 1',
+            'ALTER TABLE people ADD COLUMN mother_uid TEXT',
+            'ALTER TABLE people ADD COLUMN father_uid TEXT',
+            'ALTER TABLE people ADD COLUMN spouse_uid TEXT',
+            "ALTER TABLE photos ADD COLUMN kind TEXT DEFAULT 'grave'",
+            'ALTER TABLE photos ADD COLUMN person_uid TEXT',
+            'ALTER TABLE photos ADD COLUMN by_name TEXT',
+          ]) {
+            await d.execute(sql);
+          }
+          await _createExpenses(d);
+        }
       },
       onCreate: (d, v) async {
         const sync = 'uid TEXT NOT NULL UNIQUE, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0';
@@ -60,14 +76,17 @@ class AppDb extends ChangeNotifier {
         await d.execute('''CREATE TABLE graves(
           id INTEGER PRIMARY KEY AUTOINCREMENT, cemetery_id INTEGER REFERENCES cemeteries(id) ON DELETE SET NULL,
           lat REAL, lng REAL, accuracy REAL, section TEXT, row_no TEXT, number TEXT, type TEXT, directions TEXT,
-          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, osm_id TEXT, visitor TEXT, $sync)''');
+          notes TEXT, fee_until TEXT, all_saints INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, created INTEGER NOT NULL, osm_id TEXT, visitor TEXT,
+          route TEXT, candles INTEGER DEFAULT 2, flowers INTEGER DEFAULT 1, $sync)''');
         await d.execute('''CREATE TABLE people(
           id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
           first_name TEXT, last_name TEXT, maiden_name TEXT, birth TEXT, death TEXT, burial TEXT, relation TEXT,
-          inscription TEXT, notes TEXT, remind_death INTEGER DEFAULT 1, remind_birth INTEGER DEFAULT 0, sort INTEGER DEFAULT 0, $sync)''');
+          inscription TEXT, notes TEXT, remind_death INTEGER DEFAULT 1, remind_birth INTEGER DEFAULT 0, sort INTEGER DEFAULT 0,
+          mother_uid TEXT, father_uid TEXT, spouse_uid TEXT, $sync)''');
         await d.execute('''CREATE TABLE photos(
           id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
-          path TEXT NOT NULL, caption TEXT, taken INTEGER NOT NULL, cover INTEGER DEFAULT 0, $sync)''');
+          path TEXT NOT NULL, caption TEXT, taken INTEGER NOT NULL, cover INTEGER DEFAULT 0,
+          kind TEXT DEFAULT 'grave', person_uid TEXT, by_name TEXT, $sync)''');
         await d.execute('''CREATE TABLE visits(
           id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
           date INTEGER NOT NULL, actions TEXT, note TEXT, by_name TEXT, $sync)''');
@@ -77,8 +96,17 @@ class AppDb extends ChangeNotifier {
         await d.execute('CREATE INDEX idx_photos_g ON photos(grave_id)');
         await d.execute('CREATE INDEX idx_visits_g ON visits(grave_id, date)');
         await d.execute('CREATE INDEX idx_graves_c ON graves(cemetery_id)');
+        await _createExpenses(d);
       },
     );
+  }
+
+  static Future<void> _createExpenses(Database d) async {
+    await d.execute('''CREATE TABLE IF NOT EXISTS expenses(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, grave_id INTEGER NOT NULL REFERENCES graves(id) ON DELETE CASCADE,
+      date INTEGER NOT NULL, amount REAL NOT NULL, category TEXT, note TEXT, paid_by TEXT,
+      uid TEXT NOT NULL UNIQUE, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)''');
+    await d.execute('CREATE INDEX IF NOT EXISTS idx_expenses_g ON expenses(grave_id, date)');
   }
 
   Future<void> close() async {
@@ -160,15 +188,15 @@ class AppDb extends ChangeNotifier {
 
   /// Usuwa grób (oznacza jako usunięty razem z osobami, zdjęciami i wizytami) i kasuje pliki zdjęć.
   Future<void> deleteGrave(int id) async {
-    for (final ph in await photos(id)) {
+    for (final r in await db.query('photos', where: 'grave_id=? AND $_live', whereArgs: [id])) {
       try {
-        await File(absPath(ph.path)).delete();
+        await File(absPath(r['path'] as String)).delete();
       } catch (_) {}
     }
     final t = nowMs();
     await db.transaction((tx) async {
       await tx.update('graves', {'deleted': 1, 'updated': t}, where: 'id=?', whereArgs: [id]);
-      for (final tb in ['people', 'photos', 'visits']) {
+      for (final tb in ['people', 'photos', 'visits', 'expenses']) {
         await tx.update(tb, {'deleted': 1, 'updated': t}, where: 'grave_id=? AND deleted=0', whereArgs: [id]);
       }
     });
@@ -187,7 +215,7 @@ class AppDb extends ChangeNotifier {
       people.putIfAbsent(p.graveId, () => []).add(p);
     }
     final covers = <int, GravePhoto>{};
-    for (final r in await db.query('photos', where: _live, orderBy: 'cover DESC, taken DESC')) {
+    for (final r in await db.query('photos', where: "$_live AND IFNULL(kind,'grave')='grave'", orderBy: 'cover DESC, taken DESC')) {
       final ph = GravePhoto.fromMap(r);
       covers.putIfAbsent(ph.graveId, () => ph);
     }
@@ -230,8 +258,22 @@ class AppDb extends ChangeNotifier {
 
   // ---------- zdjęcia ----------
 
-  Future<List<GravePhoto>> photos(int graveId) async =>
-      (await db.query('photos', where: 'grave_id=? AND $_live', whereArgs: [graveId], orderBy: 'cover DESC, taken DESC')).map(GravePhoto.fromMap).toList();
+  Future<List<GravePhoto>> photos(int graveId) async => (await db.query('photos',
+          where: "grave_id=? AND $_live AND IFNULL(kind,'grave')='grave'", whereArgs: [graveId], orderBy: 'cover DESC, taken DESC'))
+      .map(GravePhoto.fromMap)
+      .toList();
+
+  /// Wspomnienia osoby: zdjęcia za życia i nagrania głosowe.
+  Future<List<GravePhoto>> memories(String personUid) async => (await db.query('photos',
+          where: "person_uid=? AND $_live AND kind IN ('portrait','audio')", whereArgs: [personUid], orderBy: 'taken ASC'))
+      .map(GravePhoto.fromMap)
+      .toList();
+
+  Future<Map<String, int>> memoryCounts() async => {
+        for (final r in await db.rawQuery(
+            "SELECT person_uid AS u, COUNT(*) AS n FROM photos WHERE $_live AND kind IN ('portrait','audio') AND person_uid IS NOT NULL GROUP BY person_uid"))
+          r['u'] as String: (r['n'] as int)
+      };
 
   Future<int> savePhoto(GravePhoto ph, {bool notify = true}) async {
     ph.updated = nowMs();
@@ -279,7 +321,7 @@ class AppDb extends ChangeNotifier {
   /// Groby, które mają zdjęcie zrobione od [since].
   Future<Set<int>> gravesWithPhotoSince(DateTime since) async => {
         for (final r in await db.query('photos',
-            columns: ['grave_id'], where: 'taken>=? AND $_live', whereArgs: [since.millisecondsSinceEpoch]))
+            columns: ['grave_id'], where: "taken>=? AND $_live AND IFNULL(kind,'grave')='grave'", whereArgs: [since.millisecondsSinceEpoch]))
           r['grave_id'] as int
       };
 
@@ -293,6 +335,31 @@ class AppDb extends ChangeNotifier {
   Future<void> deleteVisit(int id) async {
     await db.update('visits', {'deleted': 1, 'updated': nowMs()}, where: 'id=?', whereArgs: [id]);
     changed();
+  }
+
+  // ---------- wydatki ----------
+
+  Future<List<Expense>> expenses({int? graveId}) async => (await db.query('expenses',
+          where: graveId == null ? _live : 'grave_id=? AND $_live', whereArgs: graveId == null ? null : [graveId], orderBy: 'date DESC'))
+      .map(Expense.fromMap)
+      .toList();
+
+  Future<int> saveExpense(Expense e) async {
+    e.updated = nowMs();
+    e.id = await _upsert('expenses', e.toMap(), e.id);
+    changed();
+    return e.id!;
+  }
+
+  Future<void> deleteExpense(int id) async {
+    await db.update('expenses', {'deleted': 1, 'updated': nowMs()}, where: 'id=?', whereArgs: [id]);
+    changed();
+  }
+
+  /// Osoba po uid (do drzewa rodzinnego).
+  Future<Person?> personByUid(String uid) async {
+    final r = await db.query('people', where: 'uid=? AND $_live', whereArgs: [uid]);
+    return r.isEmpty ? null : Person.fromMap(r.first);
   }
 
   Future<bool> get isEmpty async => (Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM graves WHERE deleted=0')) ?? 0) == 0;

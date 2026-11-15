@@ -4,7 +4,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/db.dart';
 import 'data/koofr_backup.dart';
+import 'services/home_widget_service.dart';
 import 'services/notifications.dart';
+import 'services/presence.dart';
 import 'sync/sync_service.dart';
 import 'ui/cemetery_icon.dart';
 import 'ui/common.dart';
@@ -38,6 +40,9 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
     await CemeteryIcons.load();
     // każda zmiana danych → synchronizacja z rodziną za kilka sekund
     AppDb.I.onLocalChange = SyncService.I.schedule;
+    // widżet na ekranie głównym odświeża się po każdej zmianie (także od rodziny)
+    AppDb.I.addListener(HomeWidgetService.schedule);
+    HomeWidgetService.update();
     _started = true;
     // w tle – nie blokują startu
     Notifications.reschedule();
@@ -60,7 +65,10 @@ class _StartupGateState extends State<StartupGate> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // po powrocie do aplikacji pobierz zmiany rodziny
-    if (state == AppLifecycleState.resumed && _started) SyncService.I.syncNow(quiet: true);
+    if (state == AppLifecycleState.resumed && _started) {
+      SyncService.I.syncNow(quiet: true);
+      CemeteryPresence.check();
+    }
   }
 
   @override

@@ -10,6 +10,7 @@ import '../data/models.dart';
 import '../logic/geo.dart';
 import '../services/catalog.dart';
 import '../services/location.dart';
+import '../services/offline_tiles.dart';
 import '../services/osm.dart';
 import 'common.dart';
 import 'grave_detail.dart';
@@ -25,9 +26,13 @@ class MapLayers {
   static bool satellite = false;
 
   static Future<void> load() async {
+    await OfflineTiles.init();
     final p = await SharedPreferences.getInstance();
     satellite = p.getBool('map_sat') ?? false;
   }
+
+  static final _osm = OfflineFirstTileProvider('osm');
+  static final _sat = OfflineFirstTileProvider('sat');
 
   static Future<void> toggle() async {
     satellite = !satellite;
@@ -40,6 +45,7 @@ class MapLayers {
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'pl.znicz.app',
+            tileProvider: _osm,
             maxNativeZoom: 19,
             maxZoom: 22,
           )
@@ -47,6 +53,7 @@ class MapLayers {
           TileLayer(
             urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
             userAgentPackageName: 'pl.znicz.app',
+            tileProvider: _sat,
             maxNativeZoom: 19,
             maxZoom: 22,
           ),

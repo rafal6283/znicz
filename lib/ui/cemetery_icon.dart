@@ -194,13 +194,9 @@ class CemeteryGlyphPainter extends CustomPainter {
       ..close();
     c.drawPath(glass, fill);
     c.drawRRect(RRect.fromLTRBR(5.5, 20.2, 18.5, 22.6, const Radius.circular(0.8)), fill);
-    final shine = Path()
-      ..moveTo(9.2, 12.6)
-      ..lineTo(10.6, 12.6)
-      ..lineTo(10.2, 19.2)
-      ..lineTo(8.6, 19.2)
-      ..close();
-    c.drawPath(shine, cut);
+    // prześwit na kloszu – dwa pionowe paski, wyraźne także w małym rozmiarze
+    c.drawRRect(RRect.fromLTRBR(9.4, 12.4, 11.0, 19.0, const Radius.circular(0.6)), cut);
+    c.drawRRect(RRect.fromLTRBR(12.0, 12.4, 12.8, 16.0, const Radius.circular(0.4)), cut);
   }
 
   /// Kwatera: trzy nagrobki różnej wysokości.

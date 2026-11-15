@@ -18,6 +18,12 @@ import 'grave_years.dart';
 import 'photo_viewer.dart';
 import 'visit_edit.dart';
 import 'cemetery_icon.dart';
+import 'expenses.dart';
+import 'family_tree.dart';
+import 'grave_qr.dart';
+import 'memories.dart';
+import 'route_record.dart';
+import '../logic/geo.dart';
 
 class GraveDetailScreen extends StatefulWidget {
   final int graveId;
@@ -31,6 +37,8 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
   List<GravePhoto> _photos = [];
   List<Visit> _visits = [];
   bool _gone = false;
+  Map<String, int> _memCounts = {};
+  double _expTotal = 0;
 
   @override
   void initState() {
@@ -54,11 +62,15 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
     }
     final ph = await AppDb.I.photos(widget.graveId);
     final v = await AppDb.I.visits(widget.graveId);
+    final mem = await AppDb.I.memoryCounts();
+    final exp = await AppDb.I.expenses(graveId: widget.graveId);
     if (mounted) {
       setState(() {
         _g = g;
         _photos = ph;
         _visits = v;
+        _memCounts = mem;
+        _expTotal = exp.fold<double>(0, (a, e) => a + e.amount);
       });
     }
   }
@@ -162,6 +174,8 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
                     await _share(v);
                   case 'grobonet':
                     await _grobonet();
+                  case 'qr':
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => GraveQrScreen(grave: g)));
                   case 'del':
                     if (await confirm(context, 'Usunąć grób?', 'Zostaną usunięte osoby, zdjęcia i dziennik wizyt tego grobu – także u rodziny, jeśli synchronizujecie dane.')) {
                       await AppDb.I.deleteGrave(widget.graveId);
@@ -172,6 +186,7 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'text', child: ListTile(leading: Icon(Icons.share_outlined), title: Text('Wyślij opis i mapę'))),
                 PopupMenuItem(value: 'file', child: ListTile(leading: Icon(Icons.file_present_outlined), title: Text('Wyślij plik grobu'))),
+                PopupMenuItem(value: 'qr', child: ListTile(leading: Icon(Icons.qr_code_2), title: Text('Kod QR do grobu'))),
                 PopupMenuItem(value: 'grobonet', child: ListTile(leading: Icon(Icons.travel_explore), title: Text('Szukaj w Grobonet'))),
                 PopupMenuItem(value: 'del', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Usuń grób'))),
               ],
@@ -214,8 +229,8 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
                 child: Text('Brak dokładnego położenia – dodaj je w edycji, gdy będziesz przy grobie.', style: TextStyle(color: cs.onSurfaceVariant)),
               ),
             const SectionTitle('Osoby'),
-            for (final p in g.people) _PersonCard(p),
-            if (g.cemetery != null || g.grave.placeLabel.isNotEmpty || (g.grave.directions ?? '').isNotEmpty) const SectionTitle('Miejsce'),
+            for (final p in g.people) _PersonCard(p, memories: _memCounts[p.uid] ?? 0),
+            const SectionTitle('Miejsce'),
             if (g.cemetery != null)
               ListTile(
                 leading: CemeteryIcon(kind: g.cemetery!.kind),
@@ -226,7 +241,40 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
               ),
             if (g.grave.placeLabel.isNotEmpty) ListTile(leading: const Icon(Icons.grid_on), title: Text(g.grave.placeLabel), subtitle: g.grave.type == null ? null : Text(g.grave.type!)),
             if ((g.grave.directions ?? '').isNotEmpty) ListTile(leading: const Icon(Icons.signpost_outlined), title: Text(g.grave.directions!)),
+            ListTile(
+              leading: const Icon(Icons.route_outlined),
+              title: Text(g.grave.route.length >= 2 ? 'Droga od bramy: ${formatDistance(routeLength(g.grave.route))}' : 'Nagraj drogę od bramy'),
+              subtitle: Text(g.grave.route.length >= 2
+                  ? '„Prowadź do grobu” poprowadzi tą ścieżką'
+                  : 'Przejdź raz od bramy do grobu – rodzina trafi tą samą ścieżką'),
+              trailing: g.grave.route.length >= 2
+                  ? PopupMenuButton<String>(
+                      onSelected: (v) async {
+                        if (v == 'again') {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => RouteRecordScreen(graveId: widget.graveId)));
+                        } else if (v == 'del' && await confirm(context, 'Usunąć nagraną drogę?', 'Prowadzenie wróci do linii prostej.')) {
+                          g.grave.route = const [];
+                          await AppDb.I.saveGrave(g.grave);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'again', child: Text('Nagraj ponownie')),
+                        PopupMenuItem(value: 'del', child: Text('Usuń drogę')),
+                      ],
+                    )
+                  : const Icon(Icons.chevron_right),
+              onTap: g.grave.route.length >= 2
+                  ? null
+                  : () => Navigator.push(context, MaterialPageRoute(builder: (_) => RouteRecordScreen(graveId: widget.graveId))),
+            ),
             if (g.grave.feePaidUntil != null) _FeeTile(g.grave.feePaidUntil!),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: Text(_expTotal > 0 ? 'Wydatki: ${zl(_expTotal)}' : 'Wydatki'),
+              subtitle: const Text('Opłaty, kamieniarz, znicze – z rozliczeniem w rodzinie'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExpensesScreen(graveId: widget.graveId, title: 'Wydatki – ${g.title}'))),
+            ),
             if ((g.grave.notes ?? '').isNotEmpty) ...[
               const SectionTitle('Notatki'),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(g.grave.notes!)),
@@ -287,7 +335,8 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
 
 class _PersonCard extends StatelessWidget {
   final Person p;
-  const _PersonCard(this.p);
+  final int memories;
+  const _PersonCard(this.p, {this.memories = 0});
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -315,6 +364,24 @@ class _PersonCard extends StatelessWidget {
               child: Text(p.inscription!, style: const TextStyle(fontStyle: FontStyle.italic)),
             ),
           if ((p.notes ?? '').isNotEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text(p.notes!)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 4, children: [
+            TextButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MemoriesScreen(person: p))),
+              icon: const Icon(Icons.auto_stories_outlined, size: 18),
+              label: Text(memories > 0 ? 'Wspomnienia ($memories)' : 'Wspomnienia'),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FamilyTreeScreen(person: p))),
+              icon: const Icon(Icons.account_tree_outlined, size: 18),
+              label: const Text('Drzewo'),
+            ),
+            TextButton.icon(
+              onPressed: () => showGeneteka(context, p),
+              icon: const Icon(Icons.manage_search, size: 18),
+              label: const Text('Geneteka'),
+            ),
+          ]),
         ]),
       ),
     );

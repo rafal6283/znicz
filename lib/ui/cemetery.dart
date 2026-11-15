@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/db.dart';
 import '../data/models.dart';
 import '../services/location.dart';
+import '../services/offline_tiles.dart';
 import 'common.dart';
 import 'graves_list.dart';
 import 'map_screen.dart';
@@ -252,10 +253,159 @@ class _CemeteryScreenState extends State<CemeteryScreen> {
         ),
         if ((c.hours ?? '').isNotEmpty) ListTile(leading: const Icon(Icons.schedule), title: Text(c.hours!)),
         if ((c.notes ?? '').isNotEmpty) ListTile(leading: const Icon(Icons.notes), title: Text(c.notes!)),
+        OfflineMapTile(key: ValueKey(c.uid), cemetery: c),
         SectionTitle('Groby (${_graves.length})'),
         for (final g in _graves) GraveTile(g),
         const SizedBox(height: 24),
       ]),
+    );
+  }
+}
+
+/// Kafelek „Mapa offline” – pobieranie mapy i zdjęć satelitarnych cmentarza na telefon.
+class OfflineMapTile extends StatefulWidget {
+  final Cemetery cemetery;
+  const OfflineMapTile({super.key, required this.cemetery});
+  @override
+  State<OfflineMapTile> createState() => _OfflineMapTileState();
+}
+
+class _OfflineMapTileState extends State<OfflineMapTile> {
+  bool? _done;
+  double? _progress;
+  bool _cancel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    OfflineTiles.isDownloaded(widget.cemetery).then((v) {
+      if (mounted) setState(() => _done = v);
+    });
+  }
+
+  @override
+  void dispose() {
+    _cancel = true;
+    super.dispose();
+  }
+
+  Future<void> _download() async {
+    setState(() => _progress = 0);
+    try {
+      await OfflineTiles.download(widget.cemetery, cancelled: () => _cancel, onProgress: (d, t) {
+        if (mounted) setState(() => _progress = d / t);
+      });
+      if (mounted) setState(() => _done = true);
+    } catch (e) {
+      if (mounted) snack(context, '$e');
+    } finally {
+      if (mounted) setState(() => _progress = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.cemetery;
+    if (!c.hasLocation && c.outline.length < 3) return const SizedBox();
+    final n = OfflineTiles.tilesFor(c).length * OfflineTiles.layers.length;
+    return ListTile(
+      leading: Icon(_done == true ? Icons.offline_pin : Icons.download_for_offline_outlined),
+      title: const Text('Mapa offline'),
+      subtitle: _progress != null
+          ? LinearProgressIndicator(value: _progress)
+          : Text(_done == true ? 'Zapisana na telefonie – mapa i kompas działają bez zasięgu' : 'Pobierz mapę i zdjęcia satelitarne (~$n fragmentów)'),
+      trailing: _progress != null
+          ? null
+          : TextButton(onPressed: _download, child: Text(_done == true ? 'Odśwież' : 'Pobierz')),
+    );
+  }
+}
+
+/// Ustawienia: mapy offline dla wszystkich Twoich cmentarzy.
+class OfflineAllTile extends StatefulWidget {
+  const OfflineAllTile({super.key});
+  @override
+  State<OfflineAllTile> createState() => _OfflineAllTileState();
+}
+
+class _OfflineAllTileState extends State<OfflineAllTile> {
+  int _have = 0, _total = 0, _bytes = 0;
+  String? _busy;
+  bool _cancel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _cancel = true;
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final cems = (await AppDb.I.cemeteries()).where((c) => c.hasLocation || c.outline.length >= 3).toList();
+    var have = 0;
+    for (final c in cems) {
+      if (await OfflineTiles.isDownloaded(c)) have++;
+    }
+    final b = await OfflineTiles.sizeBytes();
+    if (mounted) {
+      setState(() {
+        _total = cems.length;
+        _have = have;
+        _bytes = b;
+      });
+    }
+  }
+
+  Future<void> _downloadAll() async {
+    final cems = (await AppDb.I.cemeteries()).where((c) => c.hasLocation || c.outline.length >= 3).toList();
+    var i = 0;
+    for (final c in cems) {
+      if (_cancel) break;
+      i++;
+      if (await OfflineTiles.isDownloaded(c)) continue;
+      try {
+        await OfflineTiles.download(c, cancelled: () => _cancel, onProgress: (d, t) {
+          if (mounted) setState(() => _busy = '$i/${cems.length}: ${c.label} – ${(d * 100 / t).round()}%');
+        });
+      } catch (e) {
+        if (mounted) snack(context, '${c.label}: $e');
+        break;
+      }
+    }
+    if (mounted) setState(() => _busy = null);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.download_for_offline_outlined),
+      title: const Text('Mapy offline'),
+      subtitle: Text(_busy ?? (_total == 0 ? 'Dodaj cmentarze, żeby pobrać ich mapy' : 'Pobrane: $_have z $_total cmentarzy · ${formatBytes(_bytes)}')),
+      trailing: _busy != null
+          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+          : PopupMenuButton<String>(
+              onSelected: (v) async {
+                if (v == 'all') {
+                  setState(() => _busy = 'Przygotowuję…');
+                  await _downloadAll();
+                } else if (v == 'clear') {
+                  if (await confirm(context, 'Usunąć mapy offline?', 'Mapy będą się znowu wczytywać z internetu.')) {
+                    await OfflineTiles.clear();
+                    await _load();
+                  }
+                }
+              },
+              itemBuilder: (_) => [
+                if (_have < _total) const PopupMenuItem(value: 'all', child: Text('Pobierz dla wszystkich')),
+                if (_bytes > 0) const PopupMenuItem(value: 'clear', child: Text('Usuń mapy offline')),
+              ],
+            ),
     );
   }
 }

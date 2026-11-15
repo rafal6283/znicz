@@ -227,6 +227,9 @@ class Grave {
   bool favorite;
   int created;
   String? osmId; // grób zaimportowany z OpenStreetMap
+  List<(double, double)> route; // nagrana droga od bramy do grobu
+  int candles; // ile zniczy kupić na Wszystkich Świętych
+  int flowers; // ile wiązanek / doniczek
   String uid;
   int updated;
   bool deleted;
@@ -249,10 +252,14 @@ class Grave {
     this.favorite = false,
     int? created,
     this.osmId,
+    List<(double, double)>? route,
+    this.candles = 2,
+    this.flowers = 1,
     String? uid,
     int? updated,
     this.deleted = false,
-  })  : created = created ?? nowMs(),
+  })  : route = route ?? const [],
+        created = created ?? nowMs(),
         uid = uid ?? newUid(),
         updated = updated ?? nowMs();
 
@@ -285,6 +292,9 @@ class Grave {
         'favorite': favorite ? 1 : 0,
         'created': created,
         'osm_id': osmId,
+        'route': encodeOutline(route),
+        'candles': candles,
+        'flowers': flowers,
         'uid': uid,
         'updated': updated,
         'deleted': deleted ? 1 : 0,
@@ -308,6 +318,9 @@ class Grave {
         favorite: (m['favorite'] as int? ?? 0) == 1,
         created: m['created'] as int?,
         osmId: m['osm_id'] as String?,
+        route: decodeOutline(m['route'] as String?),
+        candles: m['candles'] as int? ?? 2,
+        flowers: m['flowers'] as int? ?? 1,
         uid: m['uid'] as String?,
         updated: m['updated'] as int?,
         deleted: (m['deleted'] as int? ?? 0) == 1,
@@ -329,6 +342,9 @@ class Person {
   bool remindDeath;
   bool remindBirth;
   int sort;
+  String? motherUid; // relacje rodzinne – po uid, bo osoby mogą leżeć w różnych grobach
+  String? fatherUid;
+  String? spouseUid;
   String uid;
   int updated;
   bool deleted;
@@ -348,6 +364,9 @@ class Person {
     this.remindDeath = true,
     this.remindBirth = false,
     this.sort = 0,
+    this.motherUid,
+    this.fatherUid,
+    this.spouseUid,
     String? uid,
     int? updated,
     this.deleted = false,
@@ -383,6 +402,9 @@ class Person {
         'remind_death': remindDeath ? 1 : 0,
         'remind_birth': remindBirth ? 1 : 0,
         'sort': sort,
+        'mother_uid': motherUid,
+        'father_uid': fatherUid,
+        'spouse_uid': spouseUid,
         'uid': uid,
         'updated': updated,
         'deleted': deleted ? 1 : 0,
@@ -403,6 +425,9 @@ class Person {
         remindDeath: (m['remind_death'] as int? ?? 1) == 1,
         remindBirth: (m['remind_birth'] as int? ?? 0) == 1,
         sort: m['sort'] as int? ?? 0,
+        motherUid: m['mother_uid'] as String?,
+        fatherUid: m['father_uid'] as String?,
+        spouseUid: m['spouse_uid'] as String?,
         uid: m['uid'] as String?,
         updated: m['updated'] as int?,
         deleted: (m['deleted'] as int? ?? 0) == 1,
@@ -416,11 +441,29 @@ class GravePhoto {
   String? caption;
   int taken;
   bool cover;
+  String kind; // grave – zdjęcie grobu, portrait – zdjęcie osoby za życia, audio – nagranie wspomnienia
+  String? personUid; // wspomnienie przypisane do osoby
+  String? by; // kto z rodziny dodał
   String uid;
   int updated;
   bool deleted;
 
-  GravePhoto({this.id, required this.graveId, required this.path, this.caption, int? taken, this.cover = false, String? uid, int? updated, this.deleted = false})
+  bool get isAudio => kind == 'audio';
+
+  GravePhoto({
+    this.id,
+    required this.graveId,
+    required this.path,
+    this.caption,
+    int? taken,
+    this.cover = false,
+    this.kind = 'grave',
+    this.personUid,
+    this.by,
+    String? uid,
+    int? updated,
+    this.deleted = false,
+  })
       : taken = taken ?? nowMs(),
         uid = uid ?? newUid(),
         updated = updated ?? nowMs();
@@ -432,6 +475,9 @@ class GravePhoto {
         'caption': caption,
         'taken': taken,
         'cover': cover ? 1 : 0,
+        'kind': kind,
+        'person_uid': personUid,
+        'by_name': by,
         'uid': uid,
         'updated': updated,
         'deleted': deleted ? 1 : 0,
@@ -444,6 +490,9 @@ class GravePhoto {
         caption: m['caption'] as String?,
         taken: m['taken'] as int?,
         cover: (m['cover'] as int? ?? 0) == 1,
+        kind: m['kind'] as String? ?? 'grave',
+        personUid: m['person_uid'] as String?,
+        by: m['by_name'] as String?,
         uid: m['uid'] as String?,
         updated: m['updated'] as int?,
         deleted: (m['deleted'] as int? ?? 0) == 1,
@@ -451,6 +500,65 @@ class GravePhoto {
 }
 
 const visitActions = ['znicz', 'kwiaty', 'sprzątanie', 'modlitwa', 'naprawa'];
+
+const expenseCategories = ['opłata za miejsce', 'kamieniarz', 'znicze i kwiaty', 'sprzątanie', 'pogrzeb', 'inne'];
+
+/// Wydatek związany z grobem (opłaty, kamieniarz, znicze…), z informacją kto zapłacił.
+class Expense {
+  int? id;
+  int graveId;
+  int date;
+  double amount; // zł
+  String category;
+  String? note;
+  String? paidBy;
+  String uid;
+  int updated;
+  bool deleted;
+
+  Expense({
+    this.id,
+    required this.graveId,
+    int? date,
+    required this.amount,
+    this.category = 'inne',
+    this.note,
+    this.paidBy,
+    String? uid,
+    int? updated,
+    this.deleted = false,
+  })  : date = date ?? nowMs(),
+        uid = uid ?? newUid(),
+        updated = updated ?? nowMs();
+
+  DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(date);
+
+  Map<String, Object?> toMap() => {
+        'id': id,
+        'grave_id': graveId,
+        'date': date,
+        'amount': amount,
+        'category': category,
+        'note': note,
+        'paid_by': paidBy,
+        'uid': uid,
+        'updated': updated,
+        'deleted': deleted ? 1 : 0,
+      };
+
+  factory Expense.fromMap(Map<String, Object?> m) => Expense(
+        id: m['id'] as int?,
+        graveId: m['grave_id'] as int,
+        date: m['date'] as int,
+        amount: (m['amount'] as num?)?.toDouble() ?? 0,
+        category: m['category'] as String? ?? 'inne',
+        note: m['note'] as String?,
+        paidBy: m['paid_by'] as String?,
+        uid: m['uid'] as String?,
+        updated: m['updated'] as int?,
+        deleted: (m['deleted'] as int? ?? 0) == 1,
+      );
+}
 
 class Visit {
   int? id;

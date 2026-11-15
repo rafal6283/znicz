@@ -7,12 +7,13 @@ class GraveBundle {
   final List<Map<String, Object?>> people;
   final List<Map<String, Object?>> photos; // zawierają „file”
   final List<Map<String, Object?>> visits;
+  final List<Map<String, Object?>> expenses;
 
-  GraveBundle(this.grave, this.people, this.photos, this.visits);
+  GraveBundle(this.grave, this.people, this.photos, this.visits, [this.expenses = const []]);
 
   String get uid => grave['uid'] as String;
 
-  Map<String, Object?> toJson() => {'format': 'znicz-sync-grob', 'v': 1, 'grave': grave, 'people': people, 'photos': photos, 'visits': visits};
+  Map<String, Object?> toJson() => {'format': 'znicz-sync-grob', 'v': 1, 'grave': grave, 'people': people, 'photos': photos, 'visits': visits, 'expenses': expenses};
 
   List<int> encode() => utf8.encode(jsonEncode(toJson()));
 
@@ -20,11 +21,11 @@ class GraveBundle {
     final j = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
     if (j['format'] != 'znicz-sync-grob') throw const FormatException('To nie jest plik grobu Znicz');
     List<Map<String, Object?>> l(String k) => [for (final e in (j[k] as List? ?? const [])) Map<String, Object?>.from(e as Map)];
-    return GraveBundle(Map<String, Object?>.from(j['grave'] as Map), l('people'), l('photos'), l('visits'));
+    return GraveBundle(Map<String, Object?>.from(j['grave'] as Map), l('people'), l('photos'), l('visits'), l('expenses'));
   }
 
   /// Odcisk zawartości: zmienia się, gdy zmieni się którykolwiek rekord.
-  String get fingerprint => fingerprintOf([grave, ...people, ...photos, ...visits]);
+  String get fingerprint => fingerprintOf([grave, ...people, ...photos, ...visits, ...expenses]);
 }
 
 String fingerprintOf(Iterable<Map<String, Object?>> records) {

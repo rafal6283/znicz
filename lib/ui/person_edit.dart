@@ -5,6 +5,7 @@ import '../logic/dates_pl.dart';
 import '../logic/dictation_parser.dart';
 import 'common.dart';
 import 'dictation.dart';
+import 'family_tree.dart';
 
 class PersonEditResult {
   final Person? person; // null = usuń
@@ -153,6 +154,15 @@ class _PersonEditScreenState extends State<PersonEditScreen> {
             value: _remindBirth,
             onChanged: (v) => setState(() => _remindBirth = v),
           ),
+          if (!widget.isNew)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.account_tree_outlined),
+              title: const Text('Rodzice, małżonek, dzieci'),
+              subtitle: const Text('Ustaw w drzewie rodzinnym – łączy osoby z różnych grobów'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FamilyTreeScreen(person: widget.person))),
+            ),
           const SizedBox(height: 16),
           FilledButton(onPressed: _save, child: const Text('Zapisz')),
         ]),
