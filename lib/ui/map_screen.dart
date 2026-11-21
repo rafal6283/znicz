@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -88,15 +90,30 @@ class GravePin extends StatelessWidget {
   final Color color;
   final IconData icon;
   final Widget? glyph; // własny symbol zamiast ikony (np. ikona cmentarza)
-  const GravePin({super.key, required this.color, this.icon = Icons.local_fire_department, this.glyph});
+  final GravePhoto? photo; // zdjęcie główne grobu w kółku pinezki
+  final double size;
+  const GravePin({super.key, required this.color, this.icon = Icons.local_fire_department, this.glyph, this.photo, this.size = 34});
   @override
   Widget build(BuildContext context) {
+    final ph = photo;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2.5), boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)]),
-        child: Center(child: glyph ?? Icon(icon, color: Colors.white, size: 18)),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+            color: color, shape: BoxShape.circle, border: Border.all(color: ph == null ? Colors.white : color, width: ph == null ? 2.5 : 3), boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)]),
+        child: ph != null
+            ? ClipOval(
+                child: Image.file(
+                  File(AppDb.I.absPath(ph.path)),
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  cacheWidth: (size * 3).round(),
+                  errorBuilder: (_, __, ___) => Center(child: Icon(icon, color: Colors.white, size: 18)),
+                ),
+              )
+            : Center(child: glyph ?? Icon(icon, color: Colors.white, size: 18)),
       ),
       CustomPaint(size: const Size(10, 8), painter: _Tip(color)),
     ]);
@@ -311,12 +328,16 @@ class _MapScreenState extends State<MapScreen> {
         if (g.grave.hasLocation)
           Marker(
             point: LatLng(g.grave.lat!, g.grave.lng!),
-            width: 40,
-            height: 46,
+            width: g.cover == null ? 40 : 56,
+            height: g.cover == null ? 46 : 62,
             alignment: Alignment.topCenter,
             child: GestureDetector(
               onTap: () => setState(() => _selected = g),
-              child: GravePin(color: _selected?.grave.id == g.grave.id ? cs.error : cs.primary),
+              child: GravePin(
+                color: _selected?.grave.id == g.grave.id ? cs.error : cs.primary,
+                photo: g.cover,
+                size: g.cover == null ? 34 : 50,
+              ),
             ),
           ),
       if (_me != null) myLocationMarker(_me!),
