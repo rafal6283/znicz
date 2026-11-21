@@ -148,11 +148,16 @@ class OfflineFirstTileProvider extends TileProvider {
   final NetworkTileProvider _net = NetworkTileProvider();
   OfflineFirstTileProvider(this.layer);
 
+  // flutter_map 8: NetworkTileProvider ładuje kafle tylko przez getImageWithCancelLoadingSupport,
+  // a jego getImage rzuca UnimplementedError – stąd była pusta, szara mapa.
   @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) {
+  bool get supportsCancelLoading => true;
+
+  @override
+  ImageProvider getImageWithCancelLoadingSupport(TileCoordinates coordinates, TileLayer options, Future<void> cancelLoading) {
     final f = OfflineTiles.file(layer, coordinates.z, coordinates.x, coordinates.y);
     if (f != null && f.existsSync()) return FileImage(f);
-    return _net.getImage(coordinates, options);
+    return _net.getImageWithCancelLoadingSupport(coordinates, options, cancelLoading);
   }
 
   // Jeden dostawca jest wspólny dla wszystkich map w aplikacji (MapLayers). flutter_map zamyka dostawcę
