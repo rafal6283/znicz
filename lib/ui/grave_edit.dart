@@ -51,6 +51,7 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
   String? _newCemName;
   OsmCemetery? _catalogPick; // cmentarz z katalogu okolicy, w którego obrysie jest grób
   final List<String> _pendingPhotos = []; // ścieżki zdjęć do dodania po zapisie
+  String? _mainPending; // zdjęcie wybrane jako główne (null = pierwsze, gdy grób nie ma jeszcze zdjęć)
 
   // szybki formularz pierwszej osoby
   final _qFirst = TextEditingController();
@@ -272,6 +273,15 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
       final add = await confirm(context, 'Dodać to zdjęcie do grobu?', 'Zdjęcie trafi do galerii tego grobu.', ok: 'Dodaj', destructive: false);
       if (add) setState(() => _pendingPhotos.add(path));
     }
+  }
+
+  /// Kolejne zdjęcia grobu (bez odczytu napisu): z galerii kilka naraz albo z aparatu.
+  Future<void> _morePhotos(ImageSource source) async {
+    final xs = source == ImageSource.gallery
+        ? await ImagePicker().pickMultiImage(maxWidth: 2600, imageQuality: 88)
+        : await _one(source);
+    if (xs.isEmpty || !mounted) return;
+    setState(() => _pendingPhotos.addAll(xs.map((x) => x.path)));
   }
 
   Future<void> _photo(ImageSource source, {bool readText = true}) async {
@@ -537,8 +547,10 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
         await db.deletePerson(id);
       }
       var first = (await db.photos(gid)).isEmpty;
+      final main = _pendingPhotos.contains(_mainPending) ? _mainPending : null;
       for (final path in _pendingPhotos) {
-        await Storage.addPhoto(gid, path, cover: first);
+        final ph = await Storage.addPhoto(gid, path, cover: main == null ? first : false);
+        if (path == main) await db.setCover(ph);
         first = false;
         try {
           if (path.contains('cache')) await File(path).delete();
@@ -681,14 +693,41 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
                       right: 0,
                       top: 0,
                       child: GestureDetector(
-                        onTap: () => setState(() => _pendingPhotos.remove(p)),
+                        onTap: () => setState(() {
+                          _pendingPhotos.remove(p);
+                          if (_mainPending == p) _mainPending = null;
+                        }),
                         child: const CircleAvatar(radius: 11, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 14, color: Colors.white)),
                       ),
                     ),
+                    // wybór zdjęcia głównego
+                    if (_pendingPhotos.length > 1 || _mainPending == p)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _mainPending = _mainPending == p ? null : p),
+                          child: Padding(
+                            padding: const EdgeInsets.all(3),
+                            child: Icon(_mainPending == p ? Icons.star : Icons.star_outline,
+                                color: Colors.amber, size: 20, shadows: const [Shadow(blurRadius: 4)]),
+                          ),
+                        ),
+                      ),
                   ]),
                 ),
             ]),
           ),
+        Wrap(spacing: 4, children: [
+          TextButton.icon(
+              onPressed: () => _morePhotos(ImageSource.gallery),
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: Text(_pendingPhotos.isEmpty ? 'Zdjęcia grobu z galerii' : 'Więcej zdjęć')),
+          TextButton.icon(onPressed: () => _morePhotos(ImageSource.camera), icon: const Icon(Icons.add_a_photo_outlined), label: const Text('Aparat')),
+        ]),
+        if (_pendingPhotos.length > 1)
+          Text(_mainPending == null ? 'Stuknij ☆, aby wybrać zdjęcie główne' : '★ to zdjęcie będzie główne',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         SectionTitle('Osoby pochowane', trailing: TextButton.icon(onPressed: () => _editPerson(null), icon: const Icon(Icons.person_add_alt), label: const Text('Dodaj'))),
         if (_people.isEmpty) ...[
           VoiceField(controller: _qFirst, label: 'Imię', caps: TextCapitalization.words, onChanged: (_) => setState(() {})),
@@ -781,4 +820,9 @@ class _GraveEditScreenState extends State<GraveEditScreen> {
       ]),
     );
   }
+}
+
+Future<List<XFile>> _one(ImageSource src) async {
+  final x = await ImagePicker().pickImage(source: src, maxWidth: 2600, imageQuality: 88);
+  return x == null ? const [] : [x];
 }

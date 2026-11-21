@@ -42,6 +42,16 @@ class _PhotoViewerState extends State<PhotoViewer> {
     );
   }
 
+  Future<void> _setCover() async {
+    await AppDb.I.setCover(_cur);
+    setState(() {
+      for (final p in _photos) {
+        if (p.graveId == _cur.graveId) p.cover = identical(p, _cur);
+      }
+    });
+    if (mounted) snack(context, 'Ustawiono jako zdjęcie główne');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,6 +61,12 @@ class _PhotoViewerState extends State<PhotoViewer> {
         foregroundColor: Colors.white,
         title: Text('${_i + 1} / ${_photos.length}'),
         actions: [
+          if (!_cur.isAudio && _cur.kind == 'grave')
+            IconButton(
+              tooltip: _cur.cover ? 'Zdjęcie główne' : 'Ustaw jako główne',
+              icon: Icon(_cur.cover ? Icons.star : Icons.star_outline, color: Colors.amber),
+              onPressed: _cur.cover ? null : _setCover,
+            ),
           IconButton(tooltip: 'Odczytaj napis', icon: const Icon(Icons.text_snippet_outlined), onPressed: _readText),
           IconButton(
             tooltip: 'Udostępnij',
@@ -61,8 +77,7 @@ class _PhotoViewerState extends State<PhotoViewer> {
             iconColor: Colors.white,
             onSelected: (v) async {
               if (v == 'cover') {
-                await AppDb.I.setCover(_cur);
-                if (context.mounted) snack(context, 'Ustawiono jako zdjęcie główne');
+                await _setCover();
               } else if (v == 'del') {
                 if (await confirm(context, 'Usunąć zdjęcie?', 'Zdjęcie zostanie usunięte.')) {
                   await AppDb.I.deletePhoto(_cur);

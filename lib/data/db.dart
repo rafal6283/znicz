@@ -294,6 +294,14 @@ class AppDb extends ChangeNotifier {
       await File(absPath(ph.path)).delete();
     } catch (_) {}
     await db.update('photos', {'deleted': 1, 'updated': nowMs()}, where: 'id=?', whereArgs: [ph.id]);
+    if (ph.cover && ph.kind == 'grave') {
+      // usunięto zdjęcie główne – główne zostaje najnowsze z pozostałych
+      final rest = await photos(ph.graveId);
+      if (rest.isNotEmpty && !rest.any((x) => x.cover)) {
+        await setCover(rest.first);
+        return;
+      }
+    }
     changed();
   }
 

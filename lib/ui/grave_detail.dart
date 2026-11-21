@@ -76,9 +76,46 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
   }
 
   Future<void> _addPhoto(ImageSource src) async {
-    final x = await ImagePicker().pickImage(source: src, maxWidth: 2600, imageQuality: 88);
-    if (x == null) return;
-    await Storage.addPhoto(widget.graveId, x.path);
+    // z galerii można zaznaczyć od razu kilka zdjęć
+    final xs = src == ImageSource.gallery
+        ? await ImagePicker().pickMultiImage(maxWidth: 2600, imageQuality: 88)
+        : await _one(src);
+    for (final x in xs) {
+      await Storage.addPhoto(widget.graveId, x.path);
+    }
+    if (xs.length > 1 && mounted) snack(context, 'Dodano ${xs.length} zdjęcia – przytrzymaj zdjęcie, aby ustawić je jako główne');
+  }
+
+  /// Menu zdjęcia (przytrzymanie miniatury): zdjęcie główne, podgląd, usunięcie.
+  Future<void> _photoMenu(int i) async {
+    final ph = _photos[i];
+    final v = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: Icon(ph.cover ? Icons.star : Icons.star_outline, color: Colors.amber),
+            title: Text(ph.cover ? 'To jest zdjęcie główne' : 'Ustaw jako zdjęcie główne'),
+            subtitle: const Text('Pokazywane na liście grobów, na mapie i jako pierwsze w galerii'),
+            enabled: !ph.cover,
+            onTap: () => Navigator.pop(c, 'cover'),
+          ),
+          ListTile(leading: const Icon(Icons.fullscreen), title: const Text('Otwórz'), onTap: () => Navigator.pop(c, 'open')),
+          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Usuń zdjęcie'), onTap: () => Navigator.pop(c, 'del')),
+        ]),
+      ),
+    );
+    if (!mounted) return;
+    switch (v) {
+      case 'cover':
+        await AppDb.I.setCover(ph);
+        if (mounted) snack(context, 'Ustawiono zdjęcie główne');
+      case 'open':
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => PhotoViewer(photos: _photos, initial: i)));
+      case 'del':
+        if (await confirm(context, 'Usunąć zdjęcie?', 'Zdjęcie zostanie usunięte.')) await AppDb.I.deletePhoto(ph);
+    }
   }
 
   String _shareText(GraveView g) {
@@ -289,9 +326,15 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
                     icon: const Icon(Icons.compare_outlined),
                   ),
                 IconButton(tooltip: 'Zrób zdjęcie', onPressed: () => _addPhoto(ImageSource.camera), icon: const Icon(Icons.photo_camera_outlined)),
-                IconButton(tooltip: 'Z galerii', onPressed: () => _addPhoto(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined)),
+                IconButton(tooltip: 'Z galerii (kilka naraz)', onPressed: () => _addPhoto(ImageSource.gallery), icon: const Icon(Icons.photo_library_outlined)),
               ]),
             ),
+            if (_photos.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Text('★ zdjęcie główne – stuknij gwiazdkę przy innym zdjęciu, aby je zmienić',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+              ),
             if (_photos.isNotEmpty)
               SizedBox(
                 height: 96,
@@ -301,9 +344,23 @@ class _GraveDetailScreenState extends State<GraveDetailScreen> {
                       padding: const EdgeInsets.only(right: 8),
                       child: GestureDetector(
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PhotoViewer(photos: _photos, initial: i))),
+                        onLongPress: () => _photoMenu(i),
                         child: Stack(children: [
                           PhotoThumb(_photos[i], size: 92),
-                          if (_photos[i].cover) const Positioned(right: 4, top: 4, child: Icon(Icons.star, color: Colors.amber, size: 18)),
+                          // gwiazdka: główne (pełna) / stuknij, aby ustawić (kontur)
+                          if (_photos.length > 1 || _photos[i].cover)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: GestureDetector(
+                                onTap: _photos[i].cover ? null : () => AppDb.I.setCover(_photos[i]),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(_photos[i].cover ? Icons.star : Icons.star_outline,
+                                      color: Colors.amber, size: 20, shadows: const [Shadow(blurRadius: 4)]),
+                                ),
+                              ),
+                            ),
                         ]),
                       ),
                     ),
@@ -404,4 +461,9 @@ class _FeeTile extends StatelessWidget {
           style: TextStyle(color: warn ? cs.error : null)),
     );
   }
+}
+
+Future<List<XFile>> _one(ImageSource src) async {
+  final x = await ImagePicker().pickImage(source: src, maxWidth: 2600, imageQuality: 88);
+  return x == null ? const [] : [x];
 }
