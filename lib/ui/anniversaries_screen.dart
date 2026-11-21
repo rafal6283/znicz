@@ -129,6 +129,44 @@ class _AnniversariesScreenState extends State<AnniversariesScreen> {
               child: Text('Rocznice pojawią się tu, gdy osoby będą miały pełne daty urodzenia lub śmierci.', style: TextStyle(color: cs.onSurfaceVariant)),
             ),
           for (final e in soon) _EventTile(e, _graves[e.graveId]!),
+          // rocznice w najbliższych 12 miesiącach: słupek = miesiąc, dotknięcie pokazuje kogo wspominamy
+          if (_events.where((e) => e.kind == EventKind.death || e.kind == EventKind.birth).length >= 2) ...[
+            const SectionTitle('Rocznice w nadchodzącym roku'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: InteractiveBarChart(
+                format: (v) => '${v.round()}',
+                color: cs.secondary,
+                bars: () {
+                  const names = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+                  final out = <BarItem>[];
+                  for (var i = 0; i < 12; i++) {
+                    final m = DateTime(now.year, now.month + i);
+                    final inMonth = _events
+                        .where((e) =>
+                            (e.kind == EventKind.death || e.kind == EventKind.birth) &&
+                            e.date.year == m.year &&
+                            e.date.month == m.month)
+                        .toList();
+                    out.add(BarItem(
+                      names[m.month - 1],
+                      inMonth.length.toDouble(),
+                      detail: inMonth.isEmpty
+                          ? '${names[m.month - 1]} ${m.year}: brak rocznic'
+                          : inMonth.map((e) => '${e.date.day}.${e.date.month.toString().padLeft(2, '0')} ${e.person?.fullName ?? ''}'
+                              '${e.kind == EventKind.death ? ' †' : ' *'}').join('\n'),
+                    ));
+                  }
+                  return out;
+                }(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Text('Dotknij miesiąca: kto i kiedy († rocznica śmierci, * urodzin).',
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+            ),
+          ],
           if (_visits.isNotEmpty) ...[
             const SectionTitle('Wizyty w ostatnim roku'),
             Padding(
