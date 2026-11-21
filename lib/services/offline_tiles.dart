@@ -155,11 +155,11 @@ class OfflineFirstTileProvider extends TileProvider {
     return _net.getImage(coordinates, options);
   }
 
+  // Jeden dostawca jest wspólny dla wszystkich map w aplikacji (MapLayers). flutter_map zamyka dostawcę
+  // przy zamknięciu ekranu z mapą – zamknięty klient HTTP nie pobierał już kafli i każda kolejna mapa
+  // była pusta. Dlatego nie zamykamy go (żyje tyle co aplikacja).
   @override
-  void dispose() {
-    _net.dispose();
-    super.dispose();
-  }
+  void dispose() {}
 }
 
 String formatBytes(int b) {
